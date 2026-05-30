@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>풀필먼트 센터의 재고배치 — SNA 기반 연구 리뷰</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Noto+Serif+KR:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+:root {
+  --sb: #1428A0;
+  --sb-dark: #0D1B6B;
+  --sb-mid: #2C50D8;
+  --sb-light: #4A6FA5;
+  --sb-pale: #E8EBF7;
+  --sb-xpale: #F2F4FB;
+  --white: #FFFFFF;
+  --off: #F7F8FC;
+  --text: #111827;
+  --body: #374151;
+  --muted: #6B7280;
+  --border: #D1D9F0;
+  --warn: #C0392B;
+  --ok: #27AE60;
+  --warn-bg: #FEF2F2;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--off);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* ─── STICKY NAV ─── */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 300;
+  background: rgba(20, 40, 160, 0.97);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding: 0 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  gap: 32px;
+}
+.topnav-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.topnav-links {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 1;
+  justify-content: flex-end;
+}
+.topnav-links::-webkit-scrollbar { display: none; }
+.topnav-link {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  text-decoration: none;
+  padding: 5px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+  letter-spacing: 0.02em;
+}
+.topnav-link:hover { background: rgba(255,255,255,0.12); color: white; }
+.topnav-link.active { background: rgba(255,255,255,0.18); color: white; }
+
+/* ─── PROGRESS BAR ─── */
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #4A6FA5, #fff);
+  z-index: 400;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+/* ─── MAIN LAYOUT ─── */
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 32px 120px;
+}
+
+/* ─── HERO ─── */
+.hero {
+  background: linear-gradient(135deg, #0a0f2e 0%, #1428A0 55%, #0d1b6b 100%);
+  padding: 100px 48px 80px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 60px;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  right: -120px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 700px;
+  height: 700px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  right: 80px;
+  top: 30%;
+  transform: translateY(-50%);
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.09);
+}
+.hero-inner { max-width: 1080px; margin: 0 auto; position: relative; z-index: 1; }
+.hero-tag {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 20px;
+}
+.hero-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: clamp(26px, 3.5vw, 44px);
+  font-weight: 700;
+  color: white;
+  line-height: 1.35;
+  max-width: 780px;
+  margin-bottom: 18px;
+}
+.hero-sub {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(13px, 1.5vw, 16px);
+  color: rgba(255,255,255,0.6);
+  font-style: italic;
+  max-width: 680px;
+  margin-bottom: 48px;
+}
+.hero-meta {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  padding: 22px 28px;
+  backdrop-filter: blur(8px);
+}
+.hero-meta-row {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+}
+.hero-meta-row strong { color: white; }
+
+/* ─── SECTION WRAPPER ─── */
+.section {
+  margin-bottom: 60px;
+  scroll-margin-top: 72px;
+}
+
+/* ─── SECTION HEADER ─── */
+.sec-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+}
+.sec-num {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  background: var(--sb);
+  color: white;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+.sec-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 700;
+  color: var(--sb-dark);
+}
+
+/* ─── SUBSECTION ─── */
+.subsec {
+  margin-bottom: 32px;
+}
+.subsec-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sb);
+  margin-bottom: 14px;
+  padding-left: 12px;
+  border-left: 3px solid var(--sb);
+}
+
+/* ─── CARDS ─── */
+.card-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) {
+  .card-grid-2, .card-grid-3 { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+.card-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sb);
+  margin-bottom: 10px;
+}
+.card h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sb-dark);
+  margin-bottom: 8px;
+}
+
+/* ─── BULLETS ─── */
+ul.b { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+ul.b li {
+  font-size: 13.5px;
+  color: var(--body);
+  line-height: 1.55;
+  padding-left: 16px;
+  position: relative;
+}
+ul.b li::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 8px;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--sb);
+}
+
+/* ─── STEPS ─── */
+.steps { display: flex; flex-direction: column; gap: 10px; }
+.step { display: flex; align-items: flex-start; gap: 14px; }
+.step-n {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--sb);
+  color: white;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 2px;
+}
+.step-t { font-size: 13.5px; color: var(--body); line-height: 1.55; }
+.step-t strong { color: var(--sb-dark); }
+
+/* ─── TABLES ─── */
+.tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: var(--sb);
+  color: white;
+  font-weight: 600;
+  padding: 11px 14px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.15);
+  white-space: nowrap;
+}
+td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  text-align: center;
+  color: var(--body);
+  line-height: 1.4;
+  vertical-align: middle;
+}
+tr:nth-child(even) td { background: var(--sb-xpale); }
+tr:nth-child(odd) td { background: white; }
+td.left { text-align: left; font-weight: 600; color: var(--sb-dark); }
+.warn { color: var(--warn); font-weight: 600; }
+.ok { color: var(--ok); font-weight: 600; }
+
+/* ─── STAT BOXES ─── */
+.stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+.stat-box {
+  background: white;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--sb);
+  border-radius: 10px;
+  padding: 20px 16px;
+  text-align: center;
+}
+.stat-n {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 32px; font-weight: 700;
+  color: var(--sb); line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-l { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.stat-s { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ─── HIGHLIGHT / WARN BOXES ─── */
+.highlight {
+  background: linear-gradient(135deg, var(--sb) 0%, var(--sb-mid) 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 22px 26px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.7;
+  margin-top: 16px;
+}
+.warning-box {
+  background: var(--warn-bg);
+  border: 1px solid #FECACA;
+  border-left: 4px solid var(--warn);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--warn);
+  line-height: 1.65;
+  margin-top: 14px;
+}
+.info-box {
+  background: var(--sb-pale);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--sb);
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--sb-dark);
+  line-height: 1.65;
+  margin-top: 14px;
+}
+
+/* ─── IMPROVEMENT BADGE ─── */
+.badge {
+  display: inline-block;
+  background: #E8F5E9;
+  color: var(--ok);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ─── LIMIT ITEMS ─── */
+.limit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.limit-item {
+  background: white;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--sb);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--body);
+  line-height: 1.6;
+}
+.limit-item strong { color: var(--sb-dark); }
+.limit-item.future { border-left-color: var(--sb-light); }
+
+/* ─── BACK TO TOP ─── */
+#totop {
+  position: fixed;
+  bottom: 36px;
+  right: 36px;
+  width: 44px; height: 44px;
+  background: var(--sb);
+  color: white;
+  border: none; border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+}
+#totop.show { opacity: 1; transform: translateY(0); }
+#totop:hover { background: var(--sb-mid); }
+
+/* ─── FOOTER ─── */
+footer {
+  background: var(--sb-dark);
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  padding: 28px 32px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+footer strong { color: rgba(255,255,255,0.8); }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="pb"></div>
+
+<!-- ─── STICKY NAV ─── -->
+<nav class="topnav">
+  <div class="topnav-title">풀필먼트 센터 재고배치 연구 리뷰</div>
+  <div class="topnav-links">
+    <a class="topnav-link" href="#s1">01 연구배경</a>
+    <a class="topnav-link" href="#s2">02 선행연구</a>
+    <a class="topnav-link" href="#s3">03 방법론</a>
+    <a class="topnav-link" href="#s4">04 데이터</a>
+    <a class="topnav-link" href="#s5">05 실험결과</a>
+    <a class="topnav-link" href="#s6">06 종합요약</a>
+    <a class="topnav-link" href="#s7">07 비판적평가</a>
+  </div>
+</nav>
+
+<!-- ─── HERO ─── -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-tag">Paper Review &nbsp;·&nbsp; 한국빅데이터학회지 Vol.10 No.2, 2025</div>
+    <h1 class="hero-title">사회연결망 분석을 통한<br>풀필먼트 센터의 재고배치에 관한 연구</h1>
+    <p class="hero-sub">A Study on Inventory Allocation in Fulfillment Centers Using Social Network Analysis</p>
+    <div class="hero-meta">
+      <div class="hero-meta-row"><strong>저자</strong>&emsp;차대욱 · 이강현 · 신광섭&ensp;|&ensp;인천대학교 동북아물류대학원</div>
+      <div class="hero-meta-row"><strong>발표자</strong>&emsp;오은정&ensp;|&ensp;IT정책전문대학원 산업정보시스템전공 박사과정</div>
+      <div class="hero-meta-row"><strong>발표일</strong>&emsp;2026. 06. 06</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ════════════════════════════
+     01. 연구 배경 및 필요성
+════════════════════════════ -->
+<section class="section" id="s1">
+  <div class="sec-header">
+    <div class="sec-num">01</div>
+    <h2 class="sec-title">연구 배경 및 필요성</h2>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">이커머스 시장의 성장과 피킹 비용 문제</div>
+    <div class="card-grid-3">
+      <div class="card">
+        <div class="card-label">피킹 작업 비용</div>
+        <ul class="b">
+          <li>총 운영비용의 <strong>50% 이상</strong>을 피킹 작업이 차지<br><span style="color:var(--muted);font-size:12px">(Zhuang et al., 2024)</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">무료배송 정책</div>
+        <ul class="b">
+          <li>무료 배송 기준 설정 시 평균 주문 금액 약 <strong>2.5배 증가</strong></li>
+          <li>1건 주문당 구매 상품 수 증가</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">재고배치의 중요성</div>
+        <ul class="b">
+          <li>처리 상품 종류 증가 → 작업자가 방문해야 할 지점의 수 증가</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">연구 필요성 — 4가지 핵심 목표</div>
+    <div class="card">
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-t"><strong>상품 네트워크 구조 확인</strong> — 고객 구매데이터를 인접행렬로 변환하여 상품 네트워크 구조 시각화</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-t"><strong>집단 간 연결 강도 정량화</strong> — 중심성 지표를 활용하여 집단 간 연결 강도 정량화</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-t"><strong>풀필먼트 센터의 피킹 효율 향상</strong> — 네트워크 구조와 연결 강도를 재고배치 모형에 적용</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-t"><strong>성능 평가</strong> — ABC 분석, 연관성 분석, SNA 분석 기반 재고배치 모형 비교 검증</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════
+     02. 선행연구 검토
+════════════════════════════ -->
+<section class="section" id="s2">
+  <div class="sec-header">
+    <div class="sec-num">02</div>
+    <h2 class="sec-title">선행연구 검토</h2>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">ABC분석·연관성 분석·SNA 분석 비교</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>구분</th><th>ABC 분석</th><th>연관성 분석</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="left">분석 단위</td><td>개별 상품 (빈도)</td><td>상품 쌍 (동시구매)</td></tr>
+          <tr><td class="left">주요 지표</td><td>출고 빈도 / 금액</td><td>지지도·신뢰도·향상도</td></tr>
+          <tr><td class="left">방법</td><td>출고 빈도 기준으로 상품을 A,B,C 등급 구분</td><td>함께 주문되는 상품 집합 추출, 인접 위치에 배치</td></tr>
+          <tr><td class="left">장점</td><td>단순·직관적</td><td>상품 간 관계 반영</td></tr>
+          <tr><td class="left">한계</td><td>상품 간 관계 무시</td><td>대량 중복 규칙 생성, 규칙 간 관계 파악 곤란</td></tr>
+          <tr><td class="left">대표 연구</td><td>임우택(2014)</td><td>박광현(2016), Pang(2017), Zhou et al.(2020)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">SNA 분석의 차별성</div>
+    <div class="card-grid-3">
+      <div class="card">
+        <div class="card-label">네트워크 구성</div>
+        <ul class="b">
+          <li>상품 전체를 하나의 네트워크로 구성</li>
+          <li>직간접적인 연결 관계까지 반영</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">중심성 지표</div>
+        <ul class="b">
+          <li>연결 중심성(Degree)</li>
+          <li>매개중심성(Betweenness)</li>
+          <li>근접중심성(Closeness)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">분석 범위 확대</div>
+        <ul class="b">
+          <li>개별 속성 기준(ABC)</li>
+          <li>→ 상품 간 관계 패턴(연관규칙)</li>
+          <li>→ 위상 구조(SNA)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════
+     03. 연구 모형 및 방법론
+════════════════════════════ -->
+<section class="section" id="s3">
+  <div class="sec-header">
+    <div class="sec-num">03</div>
+    <h2 class="sec-title">연구 모형 및 방법론</h2>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">연구 절차 (6단계)</div>
+    <div class="card">
+      <div class="steps">
+        <div class="step"><div class="step-n">1</div><div class="step-t"><strong>데이터 수집·전처리</strong> — 이커머스 의류·종합쇼핑몰·완구 주문 데이터(2개월), 클렌징 작업</div></div>
+        <div class="step"><div class="step-n">2</div><div class="step-t"><strong>탐색적 분석</strong> — 주문 현황 및 주문 특성 파악을 통한 데이터 구조 탐색</div></div>
+        <div class="step"><div class="step-n">3</div><div class="step-t"><strong>데이터 처리</strong> — 데이터 구조 변환: adjacency list → adjacency matrix</div></div>
+        <div class="step"><div class="step-n">4</div><div class="step-t"><strong>데이터 시각화</strong> — 상품 네트워크 구조 확인, 중심성 비교(degree · closeness · betweenness)</div></div>
+        <div class="step"><div class="step-n">5</div><div class="step-t"><strong>모델링·적용</strong> — 측정지표 정의(density, rack 방문 횟수), 기본모형·비교모형 설계</div></div>
+        <div class="step"><div class="step-n">6</div><div class="step-t"><strong>성능 비교</strong> — 모형별 성능 비교: rack 방문 횟수, 이동거리</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">네트워크 모형 정의</div>
+    <div class="card-grid-2">
+      <div class="card">
+        <div class="card-label">네트워크 구성 요소</div>
+        <ul class="b">
+          <li><strong>노드:</strong> 상품</li>
+          <li><strong>엣지:</strong> 동일 주문에 포함되어 함께 주문된 관계</li>
+          <li><strong>가중치(aij):</strong> 두 상품이 동시에 포함된 주문 건수</li>
+        </ul>
+      </div>
+      <div class="card" style="border-left:3px solid var(--warn);">
+        <div class="card-label" style="color:var(--warn);">⚠️ 논문 내 개념 혼재 발견</div>
+        <p style="font-size:13px;color:var(--body);line-height:1.6;">aij에 대해 <strong>'수량의 곱'</strong>이라는 개념과 <strong>'상품i·j가 동시에 포함된 주문 수'</strong>라는 개념이 혼재되어 있음. 가중치 정의의 명확화 필요.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════
+     04. 실험 데이터 및 네트워크 분석
+════════════════════════════ -->
+<section class="section" id="s4">
+  <div class="sec-header">
+    <div class="sec-num">04</div>
+    <h2 class="sec-title">실험 데이터 및 네트워크 분석</h2>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">실험 데이터 현황 — 3개 쇼핑몰 비교</div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-n">11,138</div><div class="stat-l">쇼핑몰A 주문수</div><div class="stat-s">의류</div></div>
+      <div class="stat-box"><div class="stat-n">6,821</div><div class="stat-l">쇼핑몰B 주문수</div><div class="stat-s">종합</div></div>
+      <div class="stat-box"><div class="stat-n">11,268</div><div class="stat-l">쇼핑몰C 주문수</div><div class="stat-s">완구</div></div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>쇼핑몰A (의류)</th><th>쇼핑몰B (종합)</th><th>쇼핑몰C (완구)</th></tr></thead>
+        <tbody>
+          <tr><td class="left">상품수 (SKU)</td><td>623개</td><td>996개</td><td>873개</td></tr>
+          <tr><td class="left">주문당 평균 상품수</td><td>2.8개</td><td>7.5개</td><td>3.5개</td></tr>
+          <tr><td class="left">왜도 (Skewness)</td><td>2.91</td><td>4.43</td><td>4.59</td></tr>
+          <tr>
+            <td class="left">파레토 80% 상품수(집중도)</td>
+            <td class="warn">89개 (14.3%)<br><small>⚠️ 표2: 55개/6.3%</small></td>
+            <td>267개 (26.8%)</td>
+            <td class="warn">155개 (17.8%)<br><small>⚠️ 표2: 89개/14.2%</small></td>
+          </tr>
+          <tr><td class="left">주문 특성</td><td>소수 핵심 상품 집중</td><td>다양한 카테고리 교차구매 활발</td><td>세트·다품종 구매, 네트워크 분절</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="warning-box">⚠️ <strong>수치 오류:</strong> 쇼핑몰A·C의 파레토 80% 상품수 및 집중도 비율이 표2와 본문 서술 간 불일치 (자세한 내용은 07 비판적 평가 참조)</div>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">3개 쇼핑몰 네트워크 구조 분석</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>쇼핑몰A (의류)</th><th>쇼핑몰B (종합)</th><th>쇼핑몰C (완구)</th></tr></thead>
+        <tbody>
+          <tr><td class="left">노드 수</td><td>623</td><td>996</td><td>873</td></tr>
+          <tr><td class="left">간선 수</td><td>5,324</td><td>23,788</td><td>4,705</td></tr>
+          <tr><td class="left">네트워크 밀도</td><td>0.028</td><td><strong>0.048</strong></td><td>0.012</td></tr>
+          <tr><td class="left">고립 노드 수</td><td>41개</td><td>8개</td><td>72개</td></tr>
+          <tr><td class="left">최대 컴포넌트 비중</td><td>98.7%</td><td>98.5%</td><td><strong>60.6%</strong></td></tr>
+          <tr><td class="left">평균 차수</td><td>17.1</td><td><strong>47.8</strong></td><td>10.8</td></tr>
+          <tr><td class="left">허브 10% 제거시 간선(컴포넌트) 감소율</td><td><strong>76% (31%)</strong></td><td>48% (11%)</td><td>53% (52%)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-grid-3" style="margin-top:14px;">
+      <div class="card"><div class="card-label">쇼핑몰B — 최대 밀도</div><p style="font-size:13px;color:var(--body)">0.048 — 상품 카테고리 간 교차 구매 활발. 높은 밀도의 원인이 카테고리 간 교차구매인지 다양한 상품의 동시구매인지 명확히 구분 필요.</p></div>
+      <div class="card"><div class="card-label">쇼핑몰C — 최대 분절</div><p style="font-size:13px;color:var(--body)">최대 컴포넌트 60.6% — 상대적으로 분절된 구조. 나머지 상품들이 분리된 소집단 형성.</p></div>
+      <div class="card"><div class="card-label">쇼핑몰A — 허브 의존도 최고</div><p style="font-size:13px;color:var(--body)">허브 10% 제거 시 간선 76% 소실 — 소수 핵심 상품의 효율적 배치가 피킹 성능에 결정적 영향.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════
+     05. 실험 결과
+════════════════════════════ -->
+<section class="section" id="s5">
+  <div class="sec-header">
+    <div class="sec-num">05</div>
+    <h2 class="sec-title">실험 결과</h2>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">쇼핑몰별 단일 랙 방문 처리 주문 수 — SNA vs FP-Growth</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>항목</th><th>쇼핑몰A (의류)</th><th>쇼핑몰B (종합)</th><th>쇼핑몰C (완구)</th></tr></thead>
+        <tbody>
+          <tr><td class="left">FP-Growth 처리건수</td><td>3,835건</td><td>6,189건</td><td>1,158건</td></tr>
+          <tr><td class="left">최적 중심성</td><td>근접중심성</td><td>연결중심성</td><td>매개중심성</td></tr>
+          <tr><td class="left">SNA 처리건수</td><td><strong>4,953건</strong></td><td><strong>8,722건</strong></td><td><strong>1,862건</strong></td></tr>
+          <tr>
+            <td class="left">FP-Growth 대비 개선율</td>
+            <td><span class="badge">+29.2%</span></td>
+            <td><span class="badge">+40.9%</span></td>
+            <td><span class="badge">+60.8%</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="highlight">
+      <strong>핵심 발견:</strong> 쇼핑몰의 네트워크 구조 특성(집중도·평균차수·컴포넌트 분절)에 따라 최적 중심성 지표가 달라집니다. 단일 최적 전략은 존재하지 않으며, 쇼핑몰 특성에 맞는 <strong>맞춤형 전략</strong>이 필요합니다.
+    </div>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">쇼핑몰C 이동거리 비교 (맨해튼 거리)</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>중심성</th><th>총이동거리(m)</th><th>배치당 평균거리(m)</th><th>배치당 랙 방문수</th><th>ABC 대비 개선율</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:700">연결</td><td><strong>14,712</strong></td><td>49.5</td><td>3.20</td><td class="ok">18.8% ↑</td></tr>
+          <tr><td style="font-weight:700">근접</td><td>16,576</td><td>55.8</td><td><strong>3.08</strong></td><td class="ok">8.5% ↑</td></tr>
+          <tr><td style="font-weight:700">매개</td><td>18,840</td><td>63.4</td><td>3.77</td><td class="warn">4.0% ↓</td></tr>
+          <tr><td style="font-weight:700">ABC (기준)</td><td>18,112</td><td>61.0</td><td>3.99</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="info-box">
+      💡 <strong>주요 발견:</strong> 최소 방문수(근접중심성 3.08회) ≠ 최소 이동거리(연결중심성 14,712m)<br>
+      → 두 지표는 <strong>서로 다른 최적화 목표</strong>를 가집니다. 운영 우선순위에 따라 지표를 선택해야 합니다.<br>
+      <span style="color:var(--muted);font-size:12px">기준: 주문건수 3,561건 · 배치(batch) 297개 · 랙 20개</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════
+     06. 전체 결과 요약
+════════════════════════════ -->
+<section class="section" id="s6">
+  <div class="sec-header">
+    <div class="sec-num">06</div>
+    <h2 class="sec-title">전체 결과 요약</h2>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">결과 종합</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>구분</th><th>쇼핑몰A (의류)</th><th>쇼핑몰B (종합)</th><th>쇼핑몰C (완구)</th></tr></thead>
+        <tbody>
+          <tr><td class="left">최적 중심성</td><td>근접중심성</td><td>연결중심성</td><td>매개중심성</td></tr>
+          <tr><td class="left">평균 랙 방문</td><td>1.73회</td><td>1.82회</td><td>1.67회</td></tr>
+          <tr><td class="left">단일 방문 개선</td><td><span class="badge">+1,118건 (+29.2%)</span></td><td><span class="badge">+2,533건 (+40.9%)</span></td><td><span class="badge">+704건 (+60.8%)</span></td></tr>
+          <tr><td class="left">주문 특성</td><td>특정 상품 의존도 높음</td><td>다양한 상품 간 연결</td><td>최대 컴포넌트 60.6%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="highlight" style="margin-top:16px;">
+      <strong>SNA 기반 재고배치의 핵심 메커니즘</strong><br><br>
+      ① 분석 범위 확장: 개별 속성 기준(ABC) → 상품 쌍(연관규칙) → 전체 네트워크 구조(SNA)<br>
+      ② 네트워크상 구조적 중요도가 높은 핵심 상품 중심의 랙 할당<br>
+      ③ 불필요한 랙 방문 감소 → 피킹 효율 향상
+    </div>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">연구의 한계</div>
+    <div class="limit-grid">
+      <div class="limit-item"><strong>성능 평가 지표 한계</strong><br>성능 평가 지표가 집하지점 방문 횟수와 이동거리에 한정</div>
+      <div class="limit-item"><strong>정적인 재고배치 모형</strong><br>재고가 고정되어 있다고 가정한 분석</div>
+      <div class="limit-item"><strong>실무적 가이드라인 부족</strong><br>분석 결과를 실제 창고 환경의 다양한 시나리오로 구체화할 가이드 부족</div>
+    </div>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">추후 연구과제</div>
+    <div class="limit-grid">
+      <div class="limit-item future"><strong>다양한 운영 지표 분석</strong><br>총 처리시간, 시간당 처리 주문수, 작업자 활용률 등 활용. 실무 적용 타당성 종합 검증</div>
+      <div class="limit-item future"><strong>동적 재고배치 모형</strong><br>시간에 따른 주문 패턴 변화를 반영한 동적 재고배치 모형 개발 필요</div>
+      <div class="limit-item future"><strong>다양한 실증 분석</strong><br>시나리오별 대응전략, 자동화 설비 도입 센터 적용 가능성, 다양한 창고 레이아웃 성능 비교</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════
+     07. 비판적 평가
+════════════════════════════ -->
+<section class="section" id="s7">
+  <div class="sec-header">
+    <div class="sec-num">07</div>
+    <h2 class="sec-title">비판적 평가</h2>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">집하지점 방문 횟수와 이동거리의 불일치 미설명</div>
+    <div class="warning-box">
+      <strong>역전 현상:</strong> 근접중심성(최소 방문횟수 3.08회) vs 연결중심성(최단 이동거리 14,712m)의 역전 발생<br>
+      → 논문 내에는 특별한 설명 없이 "최적 방식 선택이 필요하다"는 결론만 존재. 두 목표 간 트레이드오프 메커니즘에 대한 이론적 설명이 부재함.
+    </div>
+  </div>
+
+  <div class="subsec">
+    <div class="subsec-title">주요 수치 오류 — 신뢰성 및 일관성 부족</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>구분</th><th>전체<br>상품수</th><th>표2 기재값<br>(상품수/집중도)</th>
+            <th>본문 서술값<br>(p.173)</th><th>그래프<br>(그림6)</th>
+            <th>표2 기준 산식 검증</th><th>일치 여부</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:700">쇼핑몰A</td><td>623</td><td>55개 / 6.30%</td>
+            <td>89개 (14.3%)</td><td>89 SKU</td>
+            <td>55/623×100 = 8.83%</td><td class="warn">❌ 불일치</td>
+          </tr>
+          <tr>
+            <td style="font-weight:700">쇼핑몰B</td><td>996</td><td>267개 / 26.80%</td>
+            <td>267개 (26.8%)</td><td>267 SKU</td>
+            <td>267/996×100 = 26.81%</td><td class="ok">✓ 일치</td>
+          </tr>
+          <tr>
+            <td style="font-weight:700">쇼핑몰C</td><td>873</td><td>89개 / 14.20%</td>
+            <td>155개 (17.8%)</td><td>155 SKU</td>
+            <td>89/873×100 = 10.20%</td><td class="warn">❌ 3중 불일치</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="warning-box" style="margin-top:12px;">
+      쇼핑몰A와 C에서 표, 본문 서술, 그래프 간 상품수·집중도 수치가 모두 불일치합니다. 특히 쇼핑몰C는 세 곳에서 모두 다른 값이 사용되었으며, 표2의 산식 검증 시에도 기재 비율과 맞지 않아 논문의 신뢰성 및 일관성에 의문이 제기됩니다.
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <strong>사회연결망 분석을 통한 풀필먼트 센터의 재고배치에 관한 연구</strong><br>
+  차대욱 · 이강현 · 신광섭 | 인천대학교 동북아물류대학원 | 한국빅데이터학회지 Vol.10 No.2, 2025<br>
+  발표: 오은정 | IT정책전문대학원 산업정보시스템전공 박사과정 | 2026.06.06
+</footer>
+
+<button id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// 진행 바
+window.addEventListener('scroll', () => {
+  const doc = document.documentElement;
+  const pct = (doc.scrollTop / (doc.scrollHeight - doc.clientHeight)) * 100;
+  document.getElementById('pb').style.width = pct + '%';
+  document.getElementById('totop').classList.toggle('show', doc.scrollTop > 300);
+});
+
+// 활성 섹션 강조
+const sections = document.querySelectorAll('section[id]');
+const links = document.querySelectorAll('.topnav-link');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const active = document.querySelector(`.topnav-link[href="#${e.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { threshold: 0.3, rootMargin: '-56px 0px 0px 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
