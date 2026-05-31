@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPT3.5 기반 보이스피싱 탐지 | 오은정</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue:       #1428A0;
+    --blue-mid:   #2E47C2;
+    --blue-pale:  #E8ECF8;
+    --blue-dark:  #0B1870;
+    --teal:       #0A7A7A;
+    --teal-pale:  #E4F2F2;
+    --gold:       #C8922A;
+    --gold-pale:  #FBF4E8;
+    --red-pale:   #FDECEA;
+    --red:        #B53030;
+    --green:      #0A7A5E;
+    --green-pale: #E3F4F0;
+    --slate:      #2C3553;
+    --silver:     #8892A4;
+    --off-white:  #F6F7FC;
+    --border:     #D4D9EC;
+    --text:       #1A2035;
+    --text-mid:   #3D4A6B;
+    --shadow:     0 6px 24px rgba(20,40,160,.09);
+    --shadow-sm:  0 2px 8px  rgba(20,40,160,.07);
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family:'Noto Sans KR', sans-serif;
+    background:#ECEEF5;
+    color:var(--text);
+    overflow-x:hidden;
+  }
+
+  /* ─── PROGRESS ─── */
+  #prog {
+    position:fixed; top:0; left:0; height:3px;
+    background:linear-gradient(90deg,var(--blue),var(--teal));
+    width:0; z-index:1000; transition:width .3s;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position:fixed; top:0; left:0; right:0; height:54px;
+    background:rgba(255,255,255,.95); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 36px; z-index:900;
+  }
+  .nav-brand { display:flex; align-items:center; gap:10px; }
+  .nav-dot   { width:8px; height:8px; border-radius:50%; background:var(--blue); }
+  .nav-title { font-size:13px; font-weight:700; color:var(--blue); letter-spacing:.02em; }
+  .nav-cnt   { font-family:'DM Mono',monospace; font-size:12px; color:var(--silver); }
+
+  /* ─── SLIDES ─── */
+  .slides { padding-top:54px; }
+
+  .slide {
+    padding:68px 88px;
+    min-height:100vh;
+    display:flex; flex-direction:column; justify-content:center;
+    opacity:0; transform:translateY(20px);
+    transition:opacity .55s ease, transform .55s ease;
+    position:relative;
+  }
+  .slide.vis { opacity:1; transform:translateY(0); }
+
+  .s-cover { background:linear-gradient(135deg, var(--blue) 0%, #0B1870 100%); color:#fff; }
+  .s-toc   { background:var(--off-white); }
+  .s-sec   { background:var(--blue); color:#fff; min-height:55vh; }
+  .s-white { background:#fff; }
+  .s-alt   { background:var(--off-white); }
+  .s-dark  { background:var(--slate); color:#fff; min-height:55vh; }
+  .s-end   { background:linear-gradient(135deg,#060F4A 0%,var(--blue) 100%); color:#fff; align-items:center; text-align:center; }
+
+  /* ─── COVER ─── */
+  .cv-tag {
+    display:inline-block; border:1px solid rgba(255,255,255,.25);
+    color:rgba(255,255,255,.8); font-size:11px; font-weight:700;
+    letter-spacing:.12em; text-transform:uppercase;
+    padding:5px 13px; border-radius:4px; margin:0 6px 6px 0;
+  }
+  .cv-title {
+    font-family:'Noto Serif KR',serif;
+    font-size:clamp(24px,3.5vw,44px); font-weight:700; line-height:1.3;
+    margin:20px 0 10px;
+  }
+  .cv-sub  { font-size:.72em; font-weight:400; color:rgba(255,255,255,.55); display:block; margin-top:6px; }
+  .cv-divider { width:44px; height:3px; background:rgba(255,255,255,.3); margin:24px 0; }
+  .cv-meta { display:flex; flex-direction:column; gap:5px; }
+  .cv-meta p { font-size:14px; color:rgba(255,255,255,.65); }
+  .cv-meta strong { color:#fff; }
+  .cv-circle {
+    position:absolute; right:-60px; top:50%; transform:translateY(-50%);
+    width:480px; height:480px; border-radius:50%;
+    border:70px solid rgba(255,255,255,.04); pointer-events:none;
+  }
+
+  /* ─── SECTION ─── */
+  .sec-num {
+    position:absolute; right:80px; top:50%; transform:translateY(-50%);
+    font-family:'DM Mono',monospace; font-size:110px; font-weight:500;
+    color:rgba(255,255,255,.07); line-height:1; user-select:none;
+  }
+  .sec-label { font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-bottom:12px; }
+  .sec-title { font-family:'Noto Serif KR',serif; font-size:clamp(24px,3.5vw,40px); font-weight:700; line-height:1.3; }
+
+  /* ─── SLIDE HEADER ─── */
+  .sh { margin-bottom:30px; }
+  .sh-chap  { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--blue-mid); margin-bottom:7px; }
+  .sh-title { font-family:'Noto Serif KR',serif; font-size:clamp(19px,2.4vw,27px); font-weight:700; color:var(--text); line-height:1.3; }
+  .sh-sub   { font-size:13px; color:var(--silver); margin-top:5px; }
+
+  /* ─── COMPONENTS ─── */
+
+  .hq {
+    background:linear-gradient(135deg,var(--blue),var(--blue-mid));
+    color:#fff; padding:20px 26px; border-radius:12px;
+    font-size:14px; font-weight:500; line-height:1.7;
+    position:relative; margin:0 0 20px;
+  }
+  .hq::before {
+    content:'❝'; font-size:44px; color:rgba(255,255,255,.13);
+    position:absolute; top:8px; right:18px; line-height:1;
+  }
+
+  .ib {
+    background:var(--blue-pale); border-left:4px solid var(--blue);
+    border-radius:0 8px 8px 0; padding:14px 18px;
+    font-size:13px; color:var(--text-mid); line-height:1.7; margin:10px 0;
+  }
+  .ib.teal { background:var(--teal-pale); border-left-color:var(--teal); }
+  .ib.gold { background:var(--gold-pale); border-left-color:var(--gold); }
+  .ib.green{ background:var(--green-pale);border-left-color:var(--green); }
+  .ib-lbl  { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--blue); margin-bottom:4px; }
+  .ib.teal .ib-lbl { color:var(--teal); }
+  .ib.gold .ib-lbl { color:var(--gold); }
+  .ib.green .ib-lbl{ color:var(--green);}
+
+  .badge {
+    display:inline-block; background:var(--blue-pale); color:var(--blue);
+    font-size:11px; font-weight:700; padding:3px 10px;
+    border-radius:4px; letter-spacing:.04em; margin-bottom:4px;
+  }
+  .badge.teal  { background:var(--teal-pale);  color:var(--teal); }
+  .badge.gold  { background:var(--gold-pale);  color:var(--gold); }
+  .badge.dark  { background:var(--slate);      color:#fff; }
+  .badge.green { background:var(--green-pale); color:var(--green); }
+
+  .card {
+    background:#fff; border:1px solid var(--border);
+    border-radius:12px; padding:20px 22px; box-shadow:var(--shadow-sm);
+  }
+  .card-icon  { font-size:22px; margin-bottom:10px; }
+  .card-title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:7px; }
+  .card-body  { font-size:13px; color:var(--text-mid); line-height:1.7; }
+
+  .two-col   { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+  .three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+
+  .bul { list-style:none; display:flex; flex-direction:column; gap:8px; }
+  .bul li { display:flex; gap:10px; font-size:13px; color:var(--text-mid); line-height:1.65; }
+  .bul-dot { width:6px; height:6px; border-radius:50%; background:var(--blue); flex-shrink:0; margin-top:8px; }
+
+  /* Stat */
+  .stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:14px 0; }
+  .stat-box {
+    background:#fff; border:1px solid var(--border); border-radius:10px;
+    padding:18px 12px; text-align:center;
+  }
+  .stat-box.blue { background:var(--blue); border-color:transparent; }
+  .stat-num { font-family:'DM Mono',monospace; font-size:26px; font-weight:500; color:var(--blue); line-height:1; margin-bottom:4px; }
+  .stat-box.blue .stat-num { color:#fff; }
+  .stat-lbl { font-size:11px; color:var(--silver); font-weight:500; }
+  .stat-box.blue .stat-lbl { color:rgba(255,255,255,.65); }
+
+  /* Flow */
+  .flow { display:flex; gap:0; align-items:stretch; margin:20px 0; }
+  .flow-step {
+    flex:1; background:var(--off-white); border:1px solid var(--border);
+    border-radius:10px; padding:16px 12px; text-align:center; position:relative;
+  }
+  .flow-step + .flow-step { margin-left:18px; }
+  .flow-step:not(:last-child)::after {
+    content:'→'; position:absolute; right:-14px; top:50%; transform:translateY(-50%);
+    color:var(--blue-mid); font-size:16px; font-weight:700; z-index:1;
+  }
+  .flow-num {
+    font-family:'DM Mono',monospace; font-size:10px; font-weight:600;
+    color:var(--blue); background:var(--blue-pale);
+    display:inline-block; padding:2px 8px; border-radius:4px; margin-bottom:7px;
+  }
+  .flow-lbl  { font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:3px; }
+  .flow-desc { font-size:11px; color:var(--silver); line-height:1.5; }
+
+  /* Table */
+  .tbl { width:100%; border-collapse:collapse; font-size:13px; }
+  .tbl th {
+    background:var(--blue); color:#fff; padding:11px 14px;
+    text-align:left; font-weight:600; font-size:12px; letter-spacing:.03em;
+  }
+  .tbl th:first-child { border-radius:8px 0 0 0; }
+  .tbl th:last-child  { border-radius:0 8px 0 0; }
+  .tbl td {
+    padding:10px 14px; border-bottom:1px solid var(--border);
+    color:var(--text-mid); vertical-align:middle;
+  }
+  .tbl tr:nth-child(even) td { background:var(--off-white); }
+  .tbl tr:last-child td { border-bottom:none; }
+  .tbl .good { color:var(--green); font-weight:700; }
+  .tbl .bad  { color:var(--red);   font-weight:700; }
+  .tbl .ok   { color:var(--gold);  font-weight:700; }
+
+  /* Dataset table */
+  .ds-tbl { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .ds-tbl th { background:var(--slate); color:#fff; padding:9px 12px; font-size:11.5px; text-align:left; }
+  .ds-tbl th:first-child { border-radius:6px 0 0 0; }
+  .ds-tbl th:last-child  { border-radius:0 6px 0 0; }
+  .ds-tbl td { padding:8px 12px; border-bottom:1px solid var(--border); color:var(--text-mid); }
+  .ds-tbl tr:nth-child(even) td { background:var(--off-white); }
+  .ds-tbl .vp { color:var(--red); font-weight:600; }
+  .ds-tbl .normal { color:var(--green); font-weight:600; }
+
+  /* TOC */
+  .toc-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:26px; }
+  .toc-item {
+    background:#fff; border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px; display:flex; gap:12px; align-items:flex-start;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .toc-item:hover { border-color:var(--blue-mid); box-shadow:var(--shadow-sm); }
+  .toc-num {
+    font-family:'DM Mono',monospace; font-size:11px; font-weight:500;
+    color:var(--blue); background:var(--blue-pale);
+    width:30px; height:30px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .toc-lbl { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
+  .toc-sub { font-size:12px; color:var(--silver); line-height:1.55; }
+
+  /* Prompt example */
+  .prompt-box {
+    background:#F0F1F8; border:1px solid var(--border); border-radius:8px;
+    padding:16px 18px; font-family:'DM Mono',monospace;
+    font-size:12.5px; color:var(--slate); line-height:1.8;
+  }
+  .prompt-box .p-sys { color:var(--blue); font-weight:600; }
+  .prompt-box .p-usr { color:var(--teal); }
+
+  /* End */
+  .end-title { font-family:'Noto Serif KR',serif; font-size:50px; font-weight:700; margin-bottom:14px; }
+  .end-sub   { font-size:14px; color:rgba(255,255,255,.55); margin-bottom:36px; }
+  .end-tag   {
+    display:inline-block; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.2); color:rgba(255,255,255,.8);
+    font-size:13px; padding:9px 20px; border-radius:6px; margin:4px;
+  }
+
+  /* Responsive */
+  @media(max-width:900px){
+    .slide { padding:48px 28px; }
+    .two-col, .toc-grid, .three-col { grid-template-columns:1fr; }
+    .flow { flex-direction:column; }
+    .flow-step + .flow-step { margin-left:0; margin-top:12px; }
+    .flow-step:not(:last-child)::after { display:none; }
+    .stat-row { grid-template-columns:1fr 1fr; }
+    .cv-circle, .sec-num { display:none; }
+  }
+  @media(max-width:600px){
+    .stat-row { grid-template-columns:1fr; }
+  }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div id="prog"></div>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot"></div>
+    <span class="nav-title">GPT3.5 보이스피싱 탐지 · 오은정</span>
+  </div>
+  <span class="nav-cnt" id="cnt">1 / 13</span>
+</nav>
+
+<div class="slides">
+
+  <!-- 1. COVER -->
+  <div class="slide s-cover">
+    <div class="cv-circle"></div>
+    <div style="margin-bottom:14px;">
+      <span class="cv-tag">논문 리뷰</span>
+      <span class="cv-tag">NLP · LLM Security</span>
+    </div>
+    <div class="cv-title">
+      GPT3.5 기반 초거대 언어모델을<br>활용한 보이스피싱 탐지 기법
+      <span class="cv-sub">심주용 · 김성환, 2023 · 한국정보과학회지</span>
+    </div>
+    <div class="cv-divider"></div>
+    <div class="cv-meta">
+      <p>📌 모델 — <strong>GPT text-davinci-003 (GPT-3.5)</strong></p>
+      <p>🎯 핵심 — <strong>Zero-Shot Prompting 기반 VP 가능도 0~10 정수 분류</strong></p>
+      <p>📊 성능 — <strong>Accuracy 0.94~0.97, 이종 데이터에서 KoBERT 대비 우수</strong></p>
+      <p style="margin-top:10px;">발표자 · <strong>오은정</strong> &nbsp;|&nbsp; 산업정보시스템전공</p>
+    </div>
+  </div>
+
+  <!-- 2. 목차 -->
+  <div class="slide s-toc">
+    <div class="sh">
+      <div class="sh-chap">Contents</div>
+      <div class="sh-title">발표 목차</div>
+    </div>
+    <div class="toc-grid">
+      <div class="toc-item">
+        <div class="toc-num">Ⅰ</div>
+        <div>
+          <div class="toc-lbl">연구 개요</div>
+          <div class="toc-sub">연구 배경 및 보이스피싱 피해 동향<br>연구 방법 및 핵심 기능</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅱ</div>
+        <div>
+          <div class="toc-lbl">선행 연구</div>
+          <div class="toc-sub">LSA/Doc2Vec 기반 기법 (Kim et al., 2021)<br>KoBERT 기반 탐지 (Boussougou &amp; Park, 2022)</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅲ</div>
+        <div>
+          <div class="toc-lbl">연구 결과 — 답변 분석</div>
+          <div class="toc-sub">데이터셋 구성 및 전처리<br>GPT3.5 질의응답 처리 절차 · VP 가능도 분석</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅳ</div>
+        <div>
+          <div class="toc-lbl">연구 결과 — 성능 분석</div>
+          <div class="toc-sub">알람 최적화 · GPT vs KoBERT 성능 비교<br>결론 및 향후 과제</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. SECTION I -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅰ</div>
+    <div class="sec-label">Research Overview</div>
+    <div class="sec-title">연구 개요</div>
+  </div>
+
+  <!-- 4. 연구 배경 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅰ. 연구 개요</div>
+      <div class="sh-title">1.1 연구 배경 — 보이스피싱 현황 &amp; 기술 동향</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="badge gold">피해 현황</div>
+        <div class="stat-row" style="margin-top:12px;">
+          <div class="stat-box">
+            <div class="stat-num" style="font-size:20px;">1,019억</div>
+            <div class="stat-lbl">2011년</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" style="font-size:20px;">4,040억</div>
+            <div class="stat-lbl">2018년</div>
+          </div>
+          <div class="stat-box blue">
+            <div class="stat-num" style="font-size:20px;">3.87조</div>
+            <div class="stat-lbl">누적 피해액</div>
+          </div>
+        </div>
+        <div class="ib gold" style="margin-top:12px;">
+          <div class="ib-lbl">연구 동기</div>
+          보이스피싱은 음성으로 피해자를 속여 개인정보를 탈취하고 재산상의 이익을 취하는 사기 범죄. <strong>AI 기술 활용으로 피해를 크게 줄일 것으로 기대.</strong>
+        </div>
+      </div>
+      <div>
+        <div class="badge">주요 기술 동향 (발전 순서)</div>
+        <div style="display:flex;flex-direction:column;gap:9px;margin-top:12px;">
+          <div class="ib" style="margin:0;">
+            <div class="ib-lbl">LSA (Latent Semantic Analysis)</div>
+            단어-문서 행렬 + SVD로 문서 간 유사성 측정
+          </div>
+          <div class="ib teal" style="margin:0;">
+            <div class="ib-lbl">Word2Vec / Doc2Vec</div>
+            다층 신경망 기반 단어 임베딩, 단락 간 유사도 계산
+          </div>
+          <div class="ib" style="margin:0;background:var(--blue-pale);">
+            <div class="ib-lbl">BERT</div>
+            양방향 트랜스포머 인코더 · 16GB 이상 텍스트 사전학습
+          </div>
+          <div class="ib" style="margin:0;background:var(--blue);border-left-color:transparent;border-radius:8px;">
+            <div class="ib-lbl" style="color:rgba(255,255,255,.6);">GPT ← 본 연구</div>
+            <span style="color:#fff;">Autoregressive 패러다임 · 대규모 파라미터 및 데이터</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 연구 방법 -->
+  <div class="slide s-alt">
+    <div class="sh">
+      <div class="sh-chap">Ⅰ. 연구 개요</div>
+      <div class="sh-title">1.2 연구 방법 — 제안 기법 개요</div>
+    </div>
+    <div class="hq">
+      "GPT3.5 언어 모델을 활용하여 보이스피싱을 탐지하는 기법 제안"
+    </div>
+    <div class="three-col">
+      <div class="card">
+        <div class="card-icon">🤖</div>
+        <div class="card-title">제안 기법</div>
+        <div class="card-body">
+          GPT <strong>text-davinci-003</strong> 모델 사용. 한국어 통화 음성 파일을 텍스트로 변환 후 보이스피싱 가능도 답변 → 가능도 기반 탐지 수행.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">핵심 기능</div>
+        <div class="card-body">
+          통화 중 <strong>주기적 실시간 알람</strong> 전송 기능과, 통화 종료 후 최종적으로 보이스피싱 여부를 판단하는 <strong>최종 판단</strong> 기능 포함.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <div class="card-title">성능 비교</div>
+        <div class="card-body">
+          한국어에 특화된 <strong>KoBERT 모델</strong>과 비교 분석. 훈련 데이터와 다른 출처의 데이터를 사용하여 범용성 검증.
+        </div>
+      </div>
+    </div>
+    <div class="ib teal" style="margin-top:16px;">
+      <div class="ib-lbl">VP 가능도 정의</div>
+      GPT가 판단한 Voice Phishing 의심 수준 — <strong>0 ~ 10 사이의 정수</strong>로 응답. 0에 가까울수록 일반 대화, 10에 가까울수록 보이스피싱 가능성 高.
+    </div>
+  </div>
+
+  <!-- 6. SECTION II -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅱ</div>
+    <div class="sec-label">Prior Work</div>
+    <div class="sec-title">선행 연구</div>
+  </div>
+
+  <!-- 7. 선행 연구 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅱ. 선행 연구</div>
+      <div class="sh-title">기존 보이스피싱 탐지 연구 검토</div>
+    </div>
+    <div class="two-col" style="margin-bottom:20px;">
+      <div>
+        <div class="badge teal">Kim et al., 2021</div>
+        <div class="card" style="margin-top:10px;">
+          <div class="card-title">"Voice Recognition and Document Classification-Based Data Analysis for Voice Phishing Detection"</div>
+          <div class="card-body">
+            <em>Human-Centric Computing and Information Sciences</em><br><br>
+            음성 인식 기술로 통화 음성을 텍스트로 변환한 후 <strong>LSA 또는 Doc2Vec</strong>을 사용하여 보이스피싱 판단.
+          </div>
+        </div>
+        <div class="ib gold" style="margin-top:10px;">
+          <div class="ib-lbl">한계</div>
+          보이스피싱 대화와 일반 대화가 <strong>혼재</strong>되어 있을 때 분류 정확도 하락
+        </div>
+      </div>
+      <div>
+        <div class="badge">Boussougou &amp; Park, 2022</div>
+        <div class="card" style="margin-top:10px;">
+          <div class="card-title">"Exploiting Korean Language Model to Improve Korean Voice Phishing Detection"</div>
+          <div class="card-body">
+            <em>KIPS Transactions on Software and Data Engineering</em><br><br>
+            BERT 모델의 한국어 버전인 <strong>KoBERT 모델</strong>을 사용하여 음성 통화를 텍스트로 변환한 문서에 대해 보이스피싱 여부 탐지.
+          </div>
+        </div>
+        <div class="ib" style="margin-top:10px;">
+          <div class="ib-lbl">의의</div>
+          한국어 특화 사전학습 모델 적용. 그러나 <strong>파라미터 규모·학습 데이터</strong> 측면에서 GPT 대비 제한적.
+        </div>
+      </div>
+    </div>
+    <div class="hq">
+      "GPT 모델을 보이스피싱 탐지 기법에 활용한 연구는 없음" → 본 논문의 연구 공백(Research Gap)
+    </div>
+  </div>
+
+  <!-- 8. SECTION III -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅲ</div>
+    <div class="sec-label">Results · Answer Analysis</div>
+    <div class="sec-title">연구 결과<br>— 답변 분석</div>
+  </div>
+
+  <!-- 9. 데이터 + 처리 절차 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅲ. 연구 결과 — 답변 분석</div>
+      <div class="sh-title">3.1 데이터셋 &amp; 3.2 GPT 질의응답 처리 절차</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="badge">데이터셋 구성 (총 809개 파일)</div>
+        <table class="ds-tbl" style="margin-top:10px;">
+          <thead>
+            <tr><th>Set</th><th>출처</th><th>주제</th><th>파일 수</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A</td><td>금감원·KBS 녹취록</td><td class="vp">보이스피싱</td><td>105</td></tr>
+            <tr><td>B</td><td>AI Hub</td><td>금융 상담</td><td>175</td></tr>
+            <tr><td>C</td><td>국립국어원</td><td class="normal">일상 대화</td><td>224</td></tr>
+            <tr><td>D</td><td>AI Hub</td><td>금융·보험 콜센터</td><td>105</td></tr>
+            <tr><td>E</td><td>AI Hub</td><td class="normal">일상 대화</td><td>100</td></tr>
+            <tr><td>F</td><td>AI Hub</td><td class="normal">불만 대화</td><td>100</td></tr>
+          </tbody>
+        </table>
+        <div class="ib teal" style="margin-top:10px;">
+          <div class="ib-lbl">전처리 핵심</div>
+          화자 레이블 변경 — '범죄자'·'피해자' → <strong>'참가자1'·'참가자2'</strong>로 변경하여 모델이 내용만으로 판단하도록 설계
+        </div>
+      </div>
+      <div>
+        <div class="badge">GPT 처리 절차</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+          <div class="ib" style="margin:0;">
+            <div class="ib-lbl">Step 1 — 원문 슬라이싱</div>
+            대화 원문을 <strong>Nc개 문자 단위</strong>로 분할하여 스텝 생성
+          </div>
+          <div class="ib teal" style="margin:0;">
+            <div class="ib-lbl">Step 2 — 스텝 버퍼 적재</div>
+            각 스텝을 <strong>슬라이딩 버퍼</strong>에 입력하여 문맥 유지
+          </div>
+          <div class="ib" style="margin:0;background:var(--blue-pale);">
+            <div class="ib-lbl">Step 3 — GPT Prompting</div>
+            스텝 버퍼를 포함한 전체 문맥으로 GPT에 <strong>VP 가능도</strong> 질의
+          </div>
+          <div class="ib" style="margin:0;background:var(--blue);border-left-color:transparent;border-radius:8px;">
+            <div class="ib-lbl" style="color:rgba(255,255,255,.55);">Step 4/5 — 알람 + 최종 판단</div>
+            <span style="color:#fff;">실시간 알람 발송 → 통화 종료 후 최종 VP 여부 판정</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. VP 가능도 분석 -->
+  <div class="slide s-alt">
+    <div class="sh">
+      <div class="sh-chap">Ⅲ. 연구 결과 — 답변 분석</div>
+      <div class="sh-title">3.4 VP 가능도 응답 분석 결과</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="badge" style="background:var(--red-pale);color:var(--red);">🚨 VP 대화 녹취록</div>
+        <div class="card" style="margin-top:10px;">
+          <div class="card-body">
+            <strong>녹취록 1·2·4:</strong> VP 가능도 항상 <strong>8 이상</strong><br>
+            <strong>녹취록 3·5:</strong> 2번을 제외하고 항상 8 이상
+          </div>
+        </div>
+        <div class="ib gold" style="margin-top:10px;">
+          <div class="ib-lbl">녹취록 5번 세부 분석</div>
+          "긴급한 문제 해결을 위해 돈을 요구하는 내용", "개인정보 유출·범죄 사건 연루 내용" 포함으로 가능도 高. step5 제외 시 가능도 하락.
+        </div>
+      </div>
+      <div>
+        <div class="badge green">✅ Non-VP 대화 녹취록</div>
+        <div class="card" style="margin-top:10px;">
+          <div class="card-body">
+            <strong>녹취록 3·4·5:</strong> VP 가능도 항상 <strong>0</strong><br>
+            <strong>녹취록 1·2:</strong> 한 번을 제외하고 항상 0
+          </div>
+        </div>
+        <div class="ib green" style="margin-top:10px;">
+          <div class="ib-lbl">녹취록 1번 세부 분석</div>
+          "두 사람이 즐겨보는 프로그램에 대해 대화" → 보이스피싱과 무관 판단. 일시적으로 가능도 上승한 step은 "개인정보·범죄 연루 내용" 포함으로 오인.
+        </div>
+      </div>
+    </div>
+    <div class="ib" style="margin-top:16px;">
+      <div class="ib-lbl">GPT의 판단 근거</div>
+      GPT는 <strong>개인정보 유출·범죄 사건 연루, 금융 요구, 자신을 검사·경찰이라 주장하는 내용</strong>을 보이스피싱 주요 지표로 인식하여 가능도를 부여
+    </div>
+  </div>
+
+  <!-- 11. SECTION IV -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅳ</div>
+    <div class="sec-label">Results · Performance Analysis</div>
+    <div class="sec-title">연구 결과<br>— 성능 분석</div>
+  </div>
+
+  <!-- 12. 성능 비교 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅳ. 연구 결과 — 성능 분석</div>
+      <div class="sh-title">4.2 / 4.3 알람 최적화 &amp; GPT vs KoBERT 성능 비교</div>
+    </div>
+    <div class="two-col" style="margin-bottom:18px;">
+      <div>
+        <div class="badge">알람 최적화 결과</div>
+        <div class="ib" style="margin-top:10px;">
+          <div class="ib-lbl">실시간 알람 최적화</div>
+          Threshold 높아질수록 오탐율(일반 대화 → VP 판단) ↓,<br>미탐율(VP → 일반 대화 판단) ↑ → <strong>가능도 1~8 구간 선택 제안</strong>
+        </div>
+        <div class="ib teal" style="margin-top:8px;">
+          <div class="ib-lbl">최적 파라미터</div>
+          <strong>VP 가능도 threshold: 6</strong> (실험 1·2)<br>
+          <strong>최종 빈도 threshold: 0.26~0.33</strong>
+        </div>
+      </div>
+      <div>
+        <div class="badge">GPT vs KoBERT 주요 차이</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+          <div class="ib" style="margin:0;">
+            <div class="ib-lbl">GPT 모델</div>
+            전처리 불필요 · 파라미터 수 KoBERT 대비 <strong>1,900배</strong> · 사전학습 데이터 <strong>1,350배</strong>
+          </div>
+          <div class="ib teal" style="margin:0;">
+            <div class="ib-lbl">KoBERT 모델</div>
+            특수기호·구두점·조사 등 전처리 필요 · 시퀀스 최대 64토큰 고정
+          </div>
+        </div>
+      </div>
+    </div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>실험</th><th>모델</th><th>Accuracy</th><th>F1</th><th>Precision</th><th>Recall</th><th>비고</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td><span class="badge" style="font-size:10px;">GPT</span></td><td class="good">0.97</td><td class="good">0.96</td><td>0.97</td><td>0.94</td><td>GPT 우세 — 이종 데이터</td></tr>
+        <tr><td>1</td><td>KoBERT</td><td class="bad">0.33</td><td class="bad">0.50</td><td>0.33</td><td>1.00</td><td>훈련/테스트 데이터 불일치</td></tr>
+        <tr><td>2</td><td><span class="badge" style="font-size:10px;">GPT</span></td><td class="good">0.95</td><td class="good">0.93</td><td>0.92</td><td>0.94</td><td>유사 성능</td></tr>
+        <tr><td>2</td><td>KoBERT</td><td class="good">0.97</td><td class="good">0.96</td><td>0.92</td><td>1.00</td><td></td></tr>
+        <tr><td>3</td><td><span class="badge" style="font-size:10px;">GPT</span></td><td>0.95</td><td>0.90</td><td>0.89</td><td>0.91</td><td>유사</td></tr>
+        <tr><td>3</td><td>KoBERT</td><td class="good">0.96</td><td class="good">0.93</td><td>0.88</td><td>1.00</td><td>동일 출처 데이터</td></tr>
+        <tr><td>4</td><td><span class="badge" style="font-size:10px;">GPT</span></td><td class="good">0.94</td><td class="good">0.88</td><td>0.84</td><td>0.91</td><td>GPT 우세</td></tr>
+        <tr><td>4</td><td>KoBERT</td><td>0.89</td><td>0.82</td><td>0.70</td><td>1.00</td><td></td></tr>
+        <tr><td>5</td><td><span class="badge" style="font-size:10px;">GPT</span></td><td class="good">0.96</td><td class="good">0.91</td><td>0.91</td><td>0.91</td><td>GPT 우세</td></tr>
+        <tr><td>5</td><td>KoBERT</td><td>0.93</td><td>0.86</td><td>0.86</td><td>0.86</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 13. 결론 -->
+  <div class="slide s-dark">
+    <div class="sec-num" style="color:rgba(255,255,255,.04);">V</div>
+    <div class="sh" style="margin-bottom:22px;">
+      <div class="sh-chap" style="color:rgba(255,255,255,.4);">Ⅴ. 결론</div>
+      <div class="sh-title" style="color:#fff;font-family:'Noto Serif KR',serif;">결론 및 향후 과제</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:18px 20px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.38);margin-bottom:8px;">핵심 결과</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;">
+          <li style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.65;">✅ 정확도 <strong style="color:#fff;">0.95~0.97</strong> 달성</li>
+          <li style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.65;">✅ 이종 출처 테스트 데이터에서 <strong style="color:#fff;">KoBERT 대비 우수</strong></li>
+          <li style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.65;">✅ 텍스트 전처리(tokenization·cleaning) <strong style="color:#fff;">불필요</strong></li>
+        </ul>
+      </div>
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:18px 20px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.38);margin-bottom:8px;">GPT 장점 · 단점</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.7;">
+          <strong style="color:#fff;">장점:</strong> 새로운 유형 데이터에도 일관된 성능, 적절한 프롬프트 설계만으로 적용 가능<br>
+          <strong style="color:#fff;">단점:</strong> 토큰당 과금(운용 비용 高), 프롬프트·날짜 변경 시 답변 불안정
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:18px 20px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.38);margin-bottom:8px;">향후 연구 과제</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;">
+          <li style="font-size:13px;color:rgba(255,255,255,.82);">📂 더 많은 녹취 데이터 확보 → 성능 개선</li>
+          <li style="font-size:13px;color:rgba(255,255,255,.82);">🔧 프롬프트 미세 조정 → 정확도·비용 최적화</li>
+          <li style="font-size:13px;color:rgba(255,255,255,.82);">🏗️ 보이스피싱 전용 중소형 GPT 모델 자체 제작</li>
+        </ul>
+      </div>
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:18px 20px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.38);margin-bottom:8px;">연구의 의의</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.82);line-height:1.7;">
+          보이스피싱 탐지에 <strong style="color:#fff;">GPT 기반 LLM을 최초 적용</strong>한 연구. 파인튜닝 없이 Zero-Shot Prompting만으로도 높은 탐지 성능을 입증하여 <strong style="color:#fff;">금융 보안 분야 LLM 응용 가능성</strong> 제시.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div class="slide s-end">
+    <div class="end-title">감사합니다</div>
+    <div class="end-sub">산업정보시스템전공 · 오은정</div>
+    <div>
+      <span class="end-tag">GPT-3.5 text-davinci-003</span>
+      <span class="end-tag">보이스피싱 탐지</span>
+    </div>
+    <div style="margin-top:8px;">
+      <span class="end-tag">KoBERT 비교 분석</span>
+      <span class="end-tag">Zero-Shot LLM Classification</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const cnt = document.getElementById('cnt');
+  const prog = document.getElementById('prog');
+
+  const obsVis = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('vis'); });
+  }, { threshold: 0.1 });
+
+  const obsCnt = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if(e.isIntersecting){
+        const i = Array.from(slides).indexOf(e.target) + 1;
+        cnt.textContent = i + ' / ' + slides.length;
+        prog.style.width = (i / slides.length * 100) + '%';
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(s => { obsVis.observe(s); obsCnt.observe(s); });
+</script>
+</body>
+</html>
