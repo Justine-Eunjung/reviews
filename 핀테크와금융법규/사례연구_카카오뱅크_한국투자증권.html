@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>혁신금융 사례 분석 | 오은정</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue:       #1428A0;
+    --blue-mid:   #2E47C2;
+    --blue-pale:  #E8ECF8;
+    --blue-dark:  #0B1870;
+    --teal:       #0A7A7A;
+    --teal-pale:  #E4F2F2;
+    --slate:      #2C3553;
+    --silver:     #8892A4;
+    --off-white:  #F6F7FC;
+    --border:     #D4D9EC;
+    --text:       #1A2035;
+    --text-mid:   #3D4A6B;
+    --shadow:     0 6px 24px rgba(20,40,160,.09);
+    --shadow-sm:  0 2px 8px  rgba(20,40,160,.07);
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family:'Noto Sans KR', sans-serif;
+    background:#ECEEF5;
+    color:var(--text);
+    overflow-x:hidden;
+  }
+
+  /* ─── PROGRESS ─── */
+  #prog {
+    position:fixed; top:0; left:0; height:3px;
+    background:linear-gradient(90deg,var(--blue),var(--teal));
+    width:0; z-index:1000; transition:width .3s;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position:fixed; top:0; left:0; right:0; height:54px;
+    background:rgba(255,255,255,.95); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 36px; z-index:900;
+  }
+  .nav-brand { display:flex; align-items:center; gap:10px; }
+  .nav-dot   { width:8px; height:8px; border-radius:50%; background:var(--blue); }
+  .nav-title { font-size:13px; font-weight:700; color:var(--blue); letter-spacing:.02em; }
+  .nav-cnt   { font-family:'DM Mono',monospace; font-size:12px; color:var(--silver); }
+
+  /* ─── SLIDES ─── */
+  .slides { padding-top:54px; }
+
+  .slide {
+    padding:68px 88px;
+    min-height:100vh;
+    display:flex; flex-direction:column; justify-content:center;
+    opacity:0; transform:translateY(20px);
+    transition:opacity .55s ease, transform .55s ease;
+    position:relative;
+  }
+  .slide.vis { opacity:1; transform:translateY(0); }
+
+  /* ─── SLIDE THEMES ─── */
+  .s-cover  { background:linear-gradient(135deg, var(--blue) 0%, #0B1870 100%); color:#fff; }
+  .s-toc    { background:var(--off-white); }
+  .s-sec    { background:var(--blue); color:#fff; min-height:55vh; }
+  .s-white  { background:#fff; }
+  .s-alt    { background:var(--off-white); }
+  .s-dark   { background:var(--slate); color:#fff; min-height:55vh; }
+  .s-end    { background:linear-gradient(135deg,#060F4A 0%,var(--blue) 100%); color:#fff; align-items:center; text-align:center; }
+
+  /* ─── COVER ─── */
+  .cv-tag {
+    display:inline-block; border:1px solid rgba(255,255,255,.25);
+    color:rgba(255,255,255,.8); font-size:11px; font-weight:700;
+    letter-spacing:.12em; text-transform:uppercase;
+    padding:5px 13px; border-radius:4px; margin:0 6px 6px 0;
+  }
+  .cv-title {
+    font-family:'Noto Serif KR',serif;
+    font-size:clamp(28px,4vw,50px); font-weight:700; line-height:1.25;
+    margin:20px 0 10px;
+  }
+  .cv-sub { font-size:.72em; font-weight:400; color:rgba(255,255,255,.6); display:block; margin-top:6px; }
+  .cv-divider { width:44px; height:3px; background:rgba(255,255,255,.3); margin:24px 0; }
+  .cv-meta { display:flex; flex-direction:column; gap:5px; }
+  .cv-meta p { font-size:14px; color:rgba(255,255,255,.65); }
+  .cv-meta strong { color:#fff; }
+  .cv-circle {
+    position:absolute; right:-60px; top:50%; transform:translateY(-50%);
+    width:480px; height:480px; border-radius:50%;
+    border:70px solid rgba(255,255,255,.04); pointer-events:none;
+  }
+
+  /* ─── SECTION HEADER ─── */
+  .sec-num {
+    position:absolute; right:80px; top:50%; transform:translateY(-50%);
+    font-family:'DM Mono',monospace; font-size:110px; font-weight:500;
+    color:rgba(255,255,255,.07); line-height:1; user-select:none;
+  }
+  .sec-label { font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-bottom:12px; }
+  .sec-title { font-family:'Noto Serif KR',serif; font-size:clamp(26px,3.5vw,42px); font-weight:700; line-height:1.3; }
+
+  /* ─── SLIDE HEADER ─── */
+  .sh { margin-bottom:32px; }
+  .sh-chap { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--blue-mid); margin-bottom:7px; }
+  .sh-title { font-family:'Noto Serif KR',serif; font-size:clamp(20px,2.4vw,28px); font-weight:700; color:var(--text); line-height:1.3; }
+  .sh-sub { font-size:13px; color:var(--silver); margin-top:5px; }
+
+  /* ─── COMPONENTS ─── */
+
+  /* Quote */
+  .hq {
+    background:linear-gradient(135deg,var(--blue),var(--blue-mid));
+    color:#fff; padding:22px 28px; border-radius:12px;
+    font-size:14.5px; font-weight:500; line-height:1.7;
+    position:relative; margin:0 0 22px;
+  }
+  .hq::before {
+    content:'❝'; font-size:44px; color:rgba(255,255,255,.15);
+    position:absolute; top:8px; right:18px; line-height:1;
+  }
+
+  /* Info box */
+  .ib {
+    background:var(--blue-pale); border-left:4px solid var(--blue);
+    border-radius:0 8px 8px 0; padding:16px 20px;
+    font-size:13.5px; color:var(--text-mid); line-height:1.7; margin:12px 0;
+  }
+  .ib.teal { background:var(--teal-pale); border-left-color:var(--teal); }
+  .ib.gold { background:#FBF4E8; border-left-color:#C8922A; }
+  .ib-lbl  { font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--blue); margin-bottom:5px; }
+  .ib.teal .ib-lbl { color:var(--teal); }
+  .ib.gold .ib-lbl { color:#C8922A; }
+
+  /* Badge */
+  .badge {
+    display:inline-block; background:var(--blue-pale); color:var(--blue);
+    font-size:11px; font-weight:700; padding:3px 10px;
+    border-radius:4px; letter-spacing:.04em; margin-bottom:4px;
+  }
+  .badge.teal { background:var(--teal-pale); color:var(--teal); }
+  .badge.dark { background:var(--slate); color:#fff; }
+  .badge.gold { background:#FBF4E8; color:#C8922A; }
+
+  /* Card */
+  .card {
+    background:#fff; border:1px solid var(--border);
+    border-radius:12px; padding:20px 22px; box-shadow:var(--shadow-sm);
+  }
+  .card-icon { font-size:22px; margin-bottom:10px; }
+  .card-title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:7px; }
+  .card-body  { font-size:13px; color:var(--text-mid); line-height:1.7; }
+
+  /* Two col */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+
+  /* Bullet list */
+  .bul { list-style:none; display:flex; flex-direction:column; gap:9px; }
+  .bul li { display:flex; gap:10px; font-size:13.5px; color:var(--text-mid); line-height:1.65; }
+  .bul-dot { width:6px; height:6px; border-radius:50%; background:var(--blue); flex-shrink:0; margin-top:8px; }
+
+  /* Law block */
+  .law {
+    background:#F5F5F8; border:1px solid var(--border);
+    border-radius:8px; padding:14px 18px;
+    font-size:12.5px; color:var(--text-mid); line-height:1.75; margin:10px 0;
+  }
+  .law-title { font-size:12.5px; font-weight:700; color:var(--text); margin-bottom:5px; }
+
+  /* AS-WAS / AS-IS */
+  .compare {
+    display:grid; grid-template-columns:1fr 44px 1fr;
+    align-items:stretch; margin:18px 0;
+  }
+  .cmp-side {
+    border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px;
+  }
+  .cmp-side.right { background:var(--blue-pale); border-left:none; border-radius:0 10px 10px 0; }
+  .cmp-side.left  { border-right:none; border-radius:10px 0 0 10px; }
+  .cmp-arrow {
+    background:var(--blue); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:700;
+  }
+  .cmp-lbl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:8px; }
+  .cmp-side.left  .cmp-lbl { color:var(--silver); }
+  .cmp-side.right .cmp-lbl { color:var(--blue); }
+  .cmp-text { font-size:13px; color:var(--text-mid); line-height:1.65; }
+  .cmp-side.right .cmp-text { color:var(--blue); font-weight:500; }
+
+  /* Process flow */
+  .flow { display:flex; gap:0; align-items:stretch; margin:22px 0; }
+  .flow-step {
+    flex:1; background:var(--off-white); border:1px solid var(--border);
+    border-radius:10px; padding:16px 14px; text-align:center; position:relative;
+  }
+  .flow-step + .flow-step { margin-left:18px; }
+  .flow-step:not(:last-child)::after {
+    content:'→'; position:absolute; right:-14px; top:50%; transform:translateY(-50%);
+    color:var(--blue-mid); font-size:16px; font-weight:700; z-index:1;
+  }
+  .flow-num {
+    font-family:'DM Mono',monospace; font-size:10px; font-weight:600;
+    color:var(--blue); background:var(--blue-pale);
+    display:inline-block; padding:2px 8px; border-radius:4px; margin-bottom:7px;
+  }
+  .flow-lbl  { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
+  .flow-desc { font-size:11.5px; color:var(--silver); line-height:1.5; }
+
+  /* TOC */
+  .toc-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:28px; }
+  .toc-item {
+    background:#fff; border:1px solid var(--border); border-radius:10px;
+    padding:20px 22px; display:flex; gap:14px; align-items:flex-start;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .toc-item:hover { border-color:var(--blue-mid); box-shadow:var(--shadow-sm); }
+  .toc-num {
+    font-family:'DM Mono',monospace; font-size:11px; font-weight:500;
+    color:var(--blue); background:var(--blue-pale);
+    width:30px; height:30px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .toc-lbl { font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px; }
+  .toc-sub { font-size:12px; color:var(--silver); line-height:1.55; }
+
+  /* Highlight row */
+  .kpi-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:16px 0; }
+  .kpi-box {
+    background:#fff; border:1px solid var(--border); border-radius:10px;
+    padding:20px 14px; text-align:center;
+  }
+  .kpi-num { font-family:'DM Mono',monospace; font-size:28px; font-weight:500; color:var(--blue); line-height:1; margin-bottom:5px; }
+  .kpi-lbl { font-size:11.5px; color:var(--silver); font-weight:500; }
+
+  /* End */
+  .end-title { font-family:'Noto Serif KR',serif; font-size:52px; font-weight:700; margin-bottom:14px; }
+  .end-sub   { font-size:14px; color:rgba(255,255,255,.55); margin-bottom:36px; }
+  .end-tag   {
+    display:inline-block; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.2); color:rgba(255,255,255,.8);
+    font-size:13px; padding:9px 20px; border-radius:6px; margin:4px;
+  }
+
+  /* Responsive */
+  @media(max-width:900px){
+    .slide      { padding:48px 28px; }
+    .two-col, .toc-grid, .compare { grid-template-columns:1fr; }
+    .flow       { flex-direction:column; }
+    .flow-step + .flow-step { margin-left:0; margin-top:12px; }
+    .flow-step:not(:last-child)::after { display:none; }
+    .cmp-side.left  { border-right:1px solid var(--border); border-radius:10px 10px 0 0; }
+    .cmp-side.right { border-left:1px solid var(--border);  border-radius:0 0 10px 10px; }
+    .cmp-arrow  { width:100%; height:38px; }
+    .kpi-row    { grid-template-columns:1fr 1fr; }
+    .cv-circle, .sec-num { display:none; }
+  }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div id="prog"></div>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot"></div>
+    <span class="nav-title">혁신금융 사례 분석 · 오은정</span>
+  </div>
+  <span class="nav-cnt" id="cnt">1 / 11</span>
+</nav>
+
+<div class="slides">
+
+  <!-- 1. COVER -->
+  <div class="slide s-cover">
+    <div class="cv-circle"></div>
+    <div style="margin-bottom:14px;">
+      <span class="cv-tag">혁신금융 사례연구</span>
+      <span class="cv-tag">규제 샌드박스</span>
+    </div>
+    <div class="cv-title">
+      혁신금융 사례 분석
+      <span class="cv-sub">카카오뱅크 · 한국투자증권</span>
+    </div>
+    <div class="cv-divider"></div>
+    <div class="cv-meta">
+      <p>🏦 카카오뱅크 — <strong>Azure OpenAI 기반 대화형 AI 검색 서비스</strong></p>
+      <p>📊 한국투자증권 — <strong>Clova Speech SaaS 활용 음성전환 서비스</strong></p>
+      <p style="margin-top:10px;">발표자 · <strong>오은정</strong> &nbsp;|&nbsp; 산업정보시스템전공</p>
+    </div>
+  </div>
+
+  <!-- 2. 목차 -->
+  <div class="slide s-toc">
+    <div class="sh">
+      <div class="sh-chap">Contents</div>
+      <div class="sh-title">발표 목차</div>
+    </div>
+    <div class="toc-grid">
+      <div class="toc-item">
+        <div class="toc-num">Ⅰ</div>
+        <div>
+          <div class="toc-lbl">카카오뱅크 — 지정 대상 및 법령</div>
+          <div class="toc-sub">혁신금융서비스 지정 배경<br>규제 특례 대상 법령 및 부가조건</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅱ</div>
+        <div>
+          <div class="toc-lbl">카카오뱅크 — 서비스 내용</div>
+          <div class="toc-sub">AI 금융정보 검색 서비스<br>AI 금융 계산기 · 서비스 흐름</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅲ</div>
+        <div>
+          <div class="toc-lbl">한국투자증권 — 지정 대상 및 법령</div>
+          <div class="toc-sub">SaaS 활용 음성전환 서비스 지정<br>완전판매 · 불완전판매 모니터링</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅳ</div>
+        <div>
+          <div class="toc-lbl">한국투자증권 — 서비스 내용</div>
+          <div class="toc-sub">AS-WAS vs AS-IS 서비스 전환<br>Clova Speech 기반 STT 자동화</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. SECTION I -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅰ</div>
+    <div class="sec-label">Case Study · Part 1</div>
+    <div class="sec-title">카카오뱅크<br>AI 검색 서비스</div>
+  </div>
+
+  <!-- 4. 카카오뱅크 지정 대상 + 법령 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅰ. 카카오뱅크</div>
+      <div class="sh-title">1. 지정 대상 및 금융관련 법령</div>
+    </div>
+    <div class="hq">
+      "대고객 대상으로 MS사가 제공하는 생성형AI(Azure OpenAI)를 활용한 대화형 검색 서비스 제공"
+      <span style="display:block;margin-top:8px;font-size:12.5px;color:rgba(255,255,255,.65);">금융위원회 공고 제2024-478호 · 2024.12.11 혁신금융서비스 지정</span>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="badge">규제 특례 대상 법령</div>
+        <div class="law" style="margin-top:10px;">
+          <div class="law-title">전자금융감독규정 제15조 제1항 제5호</div>
+          전산실 내 정보처리시스템과 직접 접속 단말기에 대해 인터넷 등 외부통신망으로부터 <strong>물리적 분리</strong> 의무.
+          단, 개인(신용)정보를 처리하지 않는 연구·개발 목적 또는 업무상 불가피한 경우 예외 가능.
+        </div>
+        <div class="ib teal" style="margin-top:6px;">
+          <div class="ib-lbl">특례 적용 내용</div>
+          해당 법령에 대해 특례를 적용하여 <strong>Azure OpenAI 기반 대화형 검색 서비스</strong>를 외부 클라우드로 제공 가능토록 허용
+        </div>
+      </div>
+      <div>
+        <div class="badge dark">부가 조건</div>
+        <ul class="bul" style="margin-top:12px;">
+          <li><div class="bul-dot"></div><span>보안 위협에 대비한 보안 요건 준수</span></li>
+          <li><div class="bul-dot"></div><span>정보보호 관리체계에 생성형 AI · SaaS 관련 보안 활동 포함</span></li>
+          <li><div class="bul-dot"></div><span>임직원의 고객 개인(신용)정보 부주의 처리 방지 대책 마련</span></li>
+          <li><div class="bul-dot"></div><span>유출사고 대비 배상 방안 포함 소비자 보호 · 위험관리 방안 수립</span></li>
+          <li><div class="bul-dot"></div><span>전자금융거래법 등 관련 법령 규제 준수</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 카카오뱅크 서비스 내용 -->
+  <div class="slide s-alt">
+    <div class="sh">
+      <div class="sh-chap">Ⅰ. 카카오뱅크</div>
+      <div class="sh-title">2. 서비스 내용 — AI 검색 &amp; AI 금융 계산기</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="badge teal">🔍 AI 금융정보 검색 · 2025.05.26 출시</div>
+        <div class="card" style="margin-top:10px;">
+          <div class="card-body">
+            모바일 앱에서 대화하듯 질문하면 <strong>카카오뱅크 상품·서비스 문서 참조</strong> 또는 <strong>생성형 AI 자체 답변</strong>으로 응답. 연관 서비스 링크, 콘텐츠 원문, 추가 질문 제공.
+          </div>
+        </div>
+        <div class="ib" style="margin-top:12px;">
+          <div class="ib-lbl">출시 100일 성과</div>
+          출시 100일 만에 <strong>누적 이용자 100만 명</strong> 돌파
+        </div>
+        <div class="ib teal" style="margin-top:8px;">
+          <div class="ib-lbl">유의사항</div>
+          입력창에 개인정보 입력 금지. 같은 질문도 대화 문맥에 따라 다른 답변 가능.
+        </div>
+      </div>
+      <div>
+        <div class="badge">🧮 AI 금융 계산기 · 2024.11.27 지정</div>
+        <div class="card" style="margin-top:10px;">
+          <div class="card-title">주요 기능</div>
+          <div class="card-body">
+            저축 이자·금액 계산 / 대출 이자·금액 계산 / 환율 조회 및 계산. 자연어 대화 방식으로 복잡한 금융 수치 계산 지원.
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="badge">서비스 흐름</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+            <div class="ib" style="margin:0;">
+              <div class="ib-lbl">일반 금융 질문</div>
+              생성형 AI가 자체적으로 답변 생성
+            </div>
+            <div class="ib teal" style="margin:0;">
+              <div class="ib-lbl">상품·서비스 관련 질문</div>
+              카카오뱅크에서 사전 준비한 문서를 <strong>RAG</strong> 방식으로 참조하여 답변
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. SECTION II -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅱ</div>
+    <div class="sec-label">Case Study · Part 2</div>
+    <div class="sec-title">한국투자증권<br>SaaS 음성전환 서비스</div>
+  </div>
+
+  <!-- 7. 한국투자증권 지정 + 법령 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅱ. 한국투자증권</div>
+      <div class="sh-title">1. 지정 대상 및 금융관련 법령</div>
+    </div>
+    <div class="hq">
+      "내부 임직원을 대상으로 네이버사가 제공하는 SaaS(Clova Speech)를 활용한 음성전환 서비스 제공"
+      <span style="display:block;margin-top:8px;font-size:12.5px;color:rgba(255,255,255,.65);">2025.1.15 혁신금융서비스 지정</span>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="badge">규제 특례 대상 법령</div>
+        <div class="law" style="margin-top:10px;">
+          <div class="law-title">전자금융감독규정 제15조 제1항 제3호</div>
+          내부통신망과 연결된 <strong>내부 업무용 시스템</strong>은 인터넷 등 외부통신망과 분리·차단 및 접속 금지. 단, 개인(신용)정보를 처리하지 않는 연구·개발 목적 등 예외 가능.
+        </div>
+        <div class="ib teal" style="margin-top:6px;">
+          <div class="ib-lbl">특례 적용 내용</div>
+          해당 법령에 대해 특례를 적용하여 <strong>외부망 SaaS 기반 Clova Speech</strong>를 통해 녹취파일 텍스트 변환 및 불완전판매 점검업무 수행 허용
+        </div>
+      </div>
+      <div>
+        <div class="badge dark">부가 조건</div>
+        <ul class="bul" style="margin-top:12px;">
+          <li><div class="bul-dot"></div><span>보안 위협에 대비한 보안 요건 준수</span></li>
+          <li><div class="bul-dot"></div><span>정보보호 관리체계에 SaaS 관련 보안 활동 포함</span></li>
+          <li><div class="bul-dot"></div><span>임직원의 고객 개인(신용)정보 부주의 처리 방지 대책 마련</span></li>
+          <li><div class="bul-dot"></div><span>유출사고 대비 배상 방안 포함 소비자 보호 · 위험관리 방안 수립</span></li>
+          <li><div class="bul-dot"></div><span>전자금융거래법 등 관련 법령 규제 준수</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. 완전판매 vs 불완전판매 -->
+  <div class="slide s-alt">
+    <div class="sh">
+      <div class="sh-chap">Ⅱ. 한국투자증권</div>
+      <div class="sh-title">2. 완전판매와 불완전판매 모니터링</div>
+    </div>
+    <div class="two-col" style="margin-bottom:22px;">
+      <div class="card">
+        <div class="card-icon">📞</div>
+        <div class="card-title">완전판매 모니터링</div>
+        <div class="card-body">
+          보험 계약 체결 후 계약 당사자에게 <strong>직접 전화</strong>하여 상담사가 필요 사항을 모두 고지했는지 확인하는 방식.
+        </div>
+        <div class="ib gold" style="margin-top:12px;">
+          <div class="ib-lbl">문제점</div>
+          전체 계약에 대해 <strong>일일이 전화</strong>해야 하는 번거로움과 인건비 문제
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🎙️</div>
+        <div class="card-title">불완전판매 모니터링</div>
+        <div class="card-body">
+          보험사 내부적으로 통화 녹취 내역을 기반으로 필요 사항 고지 여부를 내부적으로 점검하는 방식.
+        </div>
+        <div class="ib gold" style="margin-top:12px;">
+          <div class="ib-lbl">문제점</div>
+          전체 통화 내용을 <strong>사람이 일일이 청취</strong>해서 확인해야 하는 효율성 문제
+        </div>
+      </div>
+    </div>
+    <div class="ib" style="background:var(--blue);border-left-color:transparent;border-radius:10px;">
+      <div class="ib-lbl" style="color:rgba(255,255,255,.6);">핵심 과제</div>
+      <span style="color:#fff;font-size:14px;font-weight:500;">불완전판매 점검의 자동화 필요 → SaaS 기반 음성→텍스트 변환(STT) 도입으로 해결</span>
+    </div>
+  </div>
+
+  <!-- 9. 서비스 내용 AS-IS -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅱ. 한국투자증권</div>
+      <div class="sh-title">3. 서비스 내용 — AS-WAS vs AS-IS</div>
+    </div>
+    <div class="compare">
+      <div class="cmp-side left">
+        <div class="cmp-lbl">AS-WAS · 기존 방식</div>
+        <div class="cmp-text">
+          계약 체결 통화 내용을 <strong>사람이 직접 청취</strong>하여 확인하거나,<br>별도의 <strong>STT 솔루션을 자체 구축·도입</strong>하여 점검
+        </div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+          <div style="background:#FBF4E8;border-radius:6px;padding:8px 12px;font-size:12px;color:#C8922A;">⚠️ 높은 인건비 및 처리 시간</div>
+          <div style="background:#FBF4E8;border-radius:6px;padding:8px 12px;font-size:12px;color:#C8922A;">⚠️ 솔루션 구축 비용 발생</div>
+        </div>
+      </div>
+      <div class="cmp-arrow">→</div>
+      <div class="cmp-side right">
+        <div class="cmp-lbl">AS-IS · 혁신 방식</div>
+        <div class="cmp-text">
+          <strong>SaaS 기반 네이버 클로바 Speech</strong>로 녹취 파일을 텍스트로 자동 변환,<br>불완전판매 점검 업무 수행
+        </div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+          <div style="background:rgba(20,40,160,.08);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--blue);">✅ 자동화로 인건비·시간 절감</div>
+          <div style="background:rgba(20,40,160,.08);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--blue);">✅ 구축 없이 SaaS로 즉시 도입</div>
+        </div>
+      </div>
+    </div>
+    <div class="flow" style="margin-top:24px;">
+      <div class="flow-step">
+        <div class="flow-num">01</div>
+        <div class="flow-lbl">통화 체결</div>
+        <div class="flow-desc">보험 계약<br>통화 녹취</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">02</div>
+        <div class="flow-lbl">Clova Speech</div>
+        <div class="flow-desc">SaaS STT<br>텍스트 변환</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">03</div>
+        <div class="flow-lbl">텍스트 분석</div>
+        <div class="flow-desc">고지 사항<br>자동 점검</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">04</div>
+        <div class="flow-lbl">결과 확인</div>
+        <div class="flow-desc">불완전판매<br>여부 판단</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. 시사점 -->
+  <div class="slide s-dark">
+    <div class="sec-num" style="color:rgba(255,255,255,.05);">✓</div>
+    <div class="sh" style="margin-bottom:24px;">
+      <div class="sh-chap" style="color:rgba(255,255,255,.45);">Summary</div>
+      <div class="sh-title" style="color:#fff;font-family:'Noto Serif KR',serif;">두 사례의 공통 시사점</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:12px;padding:20px 22px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px;">공통점</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.85);line-height:1.75;">
+          두 사례 모두 <strong style="color:#fff;">전자금융감독규정 망분리 조항</strong>에 대한 규제 특례를 적용받아 외부 클라우드 SaaS를 금융 업무에 활용.
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:12px;padding:20px 22px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px;">차이점</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.85);line-height:1.75;">
+          카카오뱅크는 <strong style="color:#fff;">대고객 서비스</strong>(B2C), 한국투자증권은 <strong style="color:#fff;">내부 임직원 업무</strong>(B2E) 자동화. 목적과 수혜 대상이 상이.
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:12px;padding:20px 22px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px;">규제 방향</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.85);line-height:1.75;">
+          금융권 망분리 완화 흐름 속 <strong style="color:#fff;">혁신금융서비스 지정 제도</strong>가 금융 AI 도입의 실질적 경로로 기능.
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:12px;padding:20px 22px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:8px;">보안 조건</div>
+        <div style="font-size:13.5px;color:rgba(255,255,255,.85);line-height:1.75;">
+          두 사례 모두 개인(신용)정보 보호, 정보보호 관리체계 정비, 소비자 보호 방안이 <strong style="color:#fff;">의무 부가조건</strong>으로 수반.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11. END -->
+  <div class="slide s-end">
+    <div class="end-title">감사합니다</div>
+    <div class="end-sub">산업정보시스템전공 · 오은정</div>
+    <div>
+      <span class="end-tag">카카오뱅크 Azure OpenAI</span>
+      <span class="end-tag">한국투자증권 Clova Speech</span>
+    </div>
+    <div style="margin-top:8px;">
+      <span class="end-tag">혁신금융서비스 · 규제 샌드박스</span>
+      <span class="end-tag">금융 AI SaaS 도입</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const cnt = document.getElementById('cnt');
+  const prog = document.getElementById('prog');
+
+  const obsVis = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('vis'); });
+  }, { threshold: 0.1 });
+
+  const obsCnt = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if(e.isIntersecting){
+        const i = Array.from(slides).indexOf(e.target) + 1;
+        cnt.textContent = i + ' / ' + slides.length;
+        prog.style.width = (i / slides.length * 100) + '%';
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(s => { obsVis.observe(s); obsCnt.observe(s); });
+</script>
+</body>
+</html>
