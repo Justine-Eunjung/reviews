@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>코로나19 지표와 교통수요 상관분석 | 오은정</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Noto+Serif+KR:wght@400;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue:      #1428A0;
+    --blue-mid:  #2E47C2;
+    --blue-pale: #E8ECF8;
+    --blue-dark: #0B1870;
+    --teal:      #0A7A7A;
+    --teal-pale: #E4F2F2;
+    --gold:      #C8922A;
+    --gold-pale: #FBF4E8;
+    --red:       #B53030;
+    --red-pale:  #FDECEA;
+    --green:     #0A7A5E;
+    --green-pale:#E3F4F0;
+    --slate:     #2C3553;
+    --silver:    #8892A4;
+    --off-white: #F6F7FC;
+    --border:    #D4D9EC;
+    --text:      #1A2035;
+    --text-mid:  #3D4A6B;
+    --shadow:    0 6px 24px rgba(20,40,160,.09);
+    --shadow-sm: 0 2px 8px  rgba(20,40,160,.07);
+  }
+
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family:'Noto Sans KR', sans-serif;
+    background:#ECEEF5;
+    color:var(--text);
+    overflow-x:hidden;
+  }
+
+  /* ─── PROGRESS ─── */
+  #prog {
+    position:fixed; top:0; left:0; height:3px;
+    background:linear-gradient(90deg,var(--blue),var(--teal));
+    width:0; z-index:1000; transition:width .3s;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position:fixed; top:0; left:0; right:0; height:54px;
+    background:rgba(255,255,255,.95); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 36px; z-index:900;
+  }
+  .nav-brand { display:flex; align-items:center; gap:10px; }
+  .nav-dot   { width:8px; height:8px; border-radius:50%; background:var(--blue); }
+  .nav-title { font-size:13px; font-weight:700; color:var(--blue); letter-spacing:.02em; }
+  .nav-cnt   { font-family:'DM Mono',monospace; font-size:12px; color:var(--silver); }
+
+  /* ─── SLIDES ─── */
+  .slides { padding-top:54px; }
+
+  .slide {
+    padding:68px 88px;
+    min-height:100vh;
+    display:flex; flex-direction:column; justify-content:center;
+    opacity:0; transform:translateY(20px);
+    transition:opacity .55s ease, transform .55s ease;
+    position:relative;
+  }
+  .slide.vis { opacity:1; transform:translateY(0); }
+
+  .s-cover { background:linear-gradient(135deg,var(--blue) 0%,#0B1870 100%); color:#fff; }
+  .s-toc   { background:var(--off-white); }
+  .s-sec   { background:var(--blue); color:#fff; min-height:55vh; }
+  .s-white { background:#fff; }
+  .s-alt   { background:var(--off-white); }
+  .s-dark  { background:var(--slate); color:#fff; }
+  .s-end   { background:linear-gradient(135deg,#060F4A 0%,var(--blue) 100%); color:#fff; align-items:center; text-align:center; min-height:60vh; }
+
+  /* ─── COVER ─── */
+  .cv-circle {
+    position:absolute; right:-60px; top:50%; transform:translateY(-50%);
+    width:460px; height:460px; border-radius:50%;
+    border:65px solid rgba(255,255,255,.04); pointer-events:none;
+  }
+  .cv-circle2 {
+    position:absolute; right:80px; top:15%;
+    width:180px; height:180px; border-radius:50%;
+    border:36px solid rgba(255,255,255,.06); pointer-events:none;
+  }
+  .cv-eyebrow {
+    font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+    color:rgba(255,255,255,.45); margin-bottom:20px;
+  }
+  .cv-tag {
+    display:inline-block; border:1px solid rgba(255,255,255,.22);
+    color:rgba(255,255,255,.78); font-size:11px; font-weight:700;
+    letter-spacing:.1em; text-transform:uppercase;
+    padding:5px 13px; border-radius:4px; margin:0 6px 6px 0;
+  }
+  .cv-title {
+    font-family:'Noto Serif KR',serif;
+    font-size:clamp(24px,3.5vw,44px); font-weight:700; line-height:1.28;
+    margin:18px 0 8px;
+  }
+  .cv-sub  { font-size:.68em; font-weight:400; color:rgba(255,255,255,.52); display:block; margin-top:6px; }
+  .cv-divider { width:44px; height:3px; background:rgba(255,255,255,.28); margin:22px 0; }
+  .cv-meta p { font-size:13.5px; color:rgba(255,255,255,.65); margin-bottom:5px; }
+  .cv-meta strong { color:#fff; }
+
+  /* ─── SECTION ─── */
+  .sec-num {
+    position:absolute; right:80px; top:50%; transform:translateY(-50%);
+    font-family:'DM Mono',monospace; font-size:120px; font-weight:500;
+    color:rgba(255,255,255,.06); line-height:1; user-select:none;
+  }
+  .sec-lbl   { font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.42); margin-bottom:12px; }
+  .sec-title { font-family:'Noto Serif KR',serif; font-size:clamp(26px,3.5vw,42px); font-weight:700; line-height:1.28; }
+
+  /* ─── SLIDE HEADER ─── */
+  .sh { margin-bottom:28px; }
+  .sh-chap  { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--blue-mid); margin-bottom:7px; }
+  .sh-title { font-family:'Noto Serif KR',serif; font-size:clamp(18px,2.3vw,26px); font-weight:700; color:var(--text); line-height:1.3; }
+  .sh-sub   { font-size:13px; color:var(--silver); margin-top:5px; }
+
+  /* ─── COMPONENTS ─── */
+
+  /* Quote */
+  .hq {
+    background:linear-gradient(135deg,var(--blue),var(--blue-mid));
+    color:#fff; padding:20px 26px; border-radius:12px;
+    font-size:14px; font-weight:500; line-height:1.72;
+    position:relative; margin-bottom:22px;
+  }
+  .hq::before {
+    content:'❝'; font-size:46px; color:rgba(255,255,255,.12);
+    position:absolute; top:8px; right:18px; line-height:1;
+  }
+
+  /* Info box */
+  .ib {
+    background:var(--blue-pale); border-left:4px solid var(--blue);
+    border-radius:0 8px 8px 0; padding:13px 18px;
+    font-size:13px; color:var(--text-mid); line-height:1.7; margin:10px 0;
+  }
+  .ib.teal  { background:var(--teal-pale);  border-left-color:var(--teal); }
+  .ib.gold  { background:var(--gold-pale);  border-left-color:var(--gold); }
+  .ib.green { background:var(--green-pale); border-left-color:var(--green); }
+  .ib.red   { background:var(--red-pale);   border-left-color:var(--red); }
+  .ib-lbl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--blue); margin-bottom:4px; }
+  .ib.teal  .ib-lbl { color:var(--teal); }
+  .ib.gold  .ib-lbl { color:var(--gold); }
+  .ib.green .ib-lbl { color:var(--green); }
+  .ib.red   .ib-lbl { color:var(--red); }
+
+  /* Badge */
+  .badge {
+    display:inline-block; background:var(--blue-pale); color:var(--blue);
+    font-size:11px; font-weight:700; padding:3px 10px;
+    border-radius:4px; letter-spacing:.04em; margin-bottom:4px;
+  }
+  .badge.teal  { background:var(--teal-pale);  color:var(--teal); }
+  .badge.gold  { background:var(--gold-pale);  color:var(--gold); }
+  .badge.dark  { background:var(--slate);      color:#fff; }
+  .badge.green { background:var(--green-pale); color:var(--green); }
+  .badge.red   { background:var(--red-pale);   color:var(--red); }
+
+  /* Card */
+  .card {
+    background:#fff; border:1px solid var(--border);
+    border-radius:12px; padding:18px 20px; box-shadow:var(--shadow-sm);
+  }
+  .card-icon  { font-size:20px; margin-bottom:9px; }
+  .card-title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:6px; }
+  .card-body  { font-size:13px; color:var(--text-mid); line-height:1.7; }
+
+  /* Grids */
+  .two-col   { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+
+  /* Bullet list */
+  .bul { list-style:none; display:flex; flex-direction:column; gap:7px; }
+  .bul li { display:flex; gap:10px; font-size:13px; color:var(--text-mid); line-height:1.65; }
+  .bul-dot { width:6px; height:6px; border-radius:50%; background:var(--blue); flex-shrink:0; margin-top:8px; }
+
+  /* Timeline */
+  .timeline { position:relative; padding-left:24px; }
+  .timeline::before {
+    content:''; position:absolute; left:6px; top:6px; bottom:6px;
+    width:2px; background:var(--border);
+  }
+  .tl-item { position:relative; padding:0 0 18px 18px; }
+  .tl-item:last-child { padding-bottom:0; }
+  .tl-dot {
+    position:absolute; left:-18px; top:4px;
+    width:10px; height:10px; border-radius:50%;
+    background:var(--blue); border:2px solid #fff;
+    box-shadow:0 0 0 2px var(--blue);
+  }
+  .tl-year { font-family:'DM Mono',monospace; font-size:11px; font-weight:600; color:var(--blue); margin-bottom:3px; }
+  .tl-text { font-size:13px; color:var(--text-mid); line-height:1.6; }
+
+  /* TOC */
+  .toc-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:26px; }
+  .toc-item {
+    background:#fff; border:1px solid var(--border); border-radius:10px;
+    padding:18px 20px; display:flex; gap:12px; align-items:flex-start;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .toc-item:hover { border-color:var(--blue-mid); box-shadow:var(--shadow-sm); }
+  .toc-num {
+    font-family:'DM Mono',monospace; font-size:11px; font-weight:500;
+    color:var(--blue); background:var(--blue-pale);
+    width:30px; height:30px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .toc-lbl { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
+  .toc-sub { font-size:12px; color:var(--silver); line-height:1.55; }
+
+  /* Research method 3-step */
+  .method-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; margin:16px 0; }
+  .method-step {
+    background:var(--off-white); border:1px solid var(--border);
+    padding:20px 18px; position:relative;
+  }
+  .method-step:first-child  { border-radius:10px 0 0 10px; }
+  .method-step:last-child   { border-radius:0 10px 10px 0; border-left:none; }
+  .method-step:nth-child(2) { border-left:none; border-right:none; }
+  .method-num {
+    font-family:'DM Mono',monospace; font-size:10px; font-weight:600;
+    color:var(--blue); background:var(--blue-pale);
+    display:inline-block; padding:2px 8px; border-radius:4px; margin-bottom:9px;
+  }
+  .method-title { font-size:13.5px; font-weight:700; color:var(--text); margin-bottom:8px; }
+  .method-body  { font-size:12px; color:var(--text-mid); line-height:1.65; }
+
+  /* Stat */
+  .stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:14px 0; }
+  .stat-box {
+    background:#fff; border:1px solid var(--border); border-radius:10px;
+    padding:16px 12px; text-align:center;
+  }
+  .stat-box.blue { background:var(--blue); border-color:transparent; }
+  .stat-num { font-family:'DM Mono',monospace; font-size:24px; font-weight:500; color:var(--blue); line-height:1; margin-bottom:4px; }
+  .stat-box.blue .stat-num { color:#fff; }
+  .stat-lbl { font-size:11px; color:var(--silver); font-weight:500; }
+  .stat-box.blue .stat-lbl { color:rgba(255,255,255,.65); }
+
+  /* Corr table */
+  .ctbl {
+    width:100%; border-collapse:collapse; font-size:12px;
+    margin:12px 0;
+  }
+  .ctbl th {
+    background:var(--blue); color:#fff; padding:9px 8px;
+    text-align:center; font-weight:600; font-size:11px;
+  }
+  .ctbl th:first-child { border-radius:8px 0 0 0; text-align:left; }
+  .ctbl th:last-child  { border-radius:0 8px 0 0; }
+  .ctbl td {
+    padding:8px; border-bottom:1px solid var(--border);
+    color:var(--text-mid); text-align:center; vertical-align:middle;
+  }
+  .ctbl td:first-child { text-align:left; font-weight:600; color:var(--text); }
+  .ctbl tr:nth-child(even) td { background:var(--off-white); }
+  .ctbl tr:last-child td { border-bottom:none; }
+  .ctbl .sig   { color:var(--green);  font-weight:700; }
+  .ctbl .nosig { color:var(--silver); }
+  .ctbl .strong { color:var(--blue);  font-weight:700; }
+  .ctbl .neg    { color:var(--red);   font-weight:600; font-size:11px; }
+
+  /* Prior research table */
+  .ptbl {
+    width:100%; border-collapse:collapse; font-size:12.5px; margin-top:14px;
+  }
+  .ptbl th {
+    background:var(--slate); color:#fff; padding:9px 12px;
+    text-align:left; font-size:11.5px;
+  }
+  .ptbl th:first-child { border-radius:7px 0 0 0; width:22%; }
+  .ptbl th:nth-child(2){ width:22%; }
+  .ptbl th:last-child  { border-radius:0 7px 0 0; }
+  .ptbl td { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text-mid); vertical-align:top; }
+  .ptbl tr:nth-child(even) td { background:var(--off-white); }
+  .ptbl tr:last-child td { border-bottom:none; }
+  .ptbl .cat { font-weight:700; color:var(--text); }
+
+  /* Traffic table */
+  .ttbl {
+    width:100%; border-collapse:collapse; font-size:11.5px;
+    margin:12px 0;
+  }
+  .ttbl th {
+    background:var(--blue); color:#fff; padding:8px 7px;
+    text-align:center; font-weight:600; font-size:10.5px;
+  }
+  .ttbl th:first-child { border-radius:7px 0 0 0; text-align:left; }
+  .ttbl th:last-child  { border-radius:0 7px 0 0; }
+  .ttbl td {
+    padding:7px; border-bottom:1px solid var(--border);
+    color:var(--text-mid); text-align:center;
+  }
+  .ttbl td:first-child { text-align:left; font-weight:600; color:var(--text); }
+  .ttbl tr:nth-child(even) td { background:var(--off-white); }
+  .ttbl tr:last-child td { border-bottom:none; }
+  .ttbl .neg { color:var(--red);   font-weight:600; }
+  .ttbl .pos { color:var(--green); font-weight:600; }
+  .ttbl .avg { background:var(--blue-pale) !important; font-weight:600; color:var(--blue-mid); }
+  .ttbl .y20 { background:#FFF8F0 !important; }
+
+  /* Result call-out */
+  .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
+  .r-card {
+    border:1px solid var(--border); border-radius:10px; padding:16px 18px;
+    background:#fff;
+  }
+  .r-card-lbl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:7px; }
+  .r-card-body { font-size:13px; color:var(--text-mid); line-height:1.7; }
+
+  /* Conclusion policy */
+  .policy-card {
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
+    border-radius:12px; padding:18px 20px;
+  }
+  .policy-lbl { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.38); margin-bottom:8px; }
+  .policy-body { font-size:13px; color:rgba(255,255,255,.82); line-height:1.7; }
+
+  /* End */
+  .end-title { font-family:'Noto Serif KR',serif; font-size:52px; font-weight:700; margin-bottom:14px; }
+  .end-sub   { font-size:14px; color:rgba(255,255,255,.52); margin-bottom:36px; }
+  .end-tag   {
+    display:inline-block; background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.2); color:rgba(255,255,255,.8);
+    font-size:13px; padding:9px 20px; border-radius:6px; margin:4px;
+  }
+
+  /* Responsive */
+  @media(max-width:900px){
+    .slide { padding:48px 28px; }
+    .two-col, .toc-grid, .method-grid, .result-grid { grid-template-columns:1fr; }
+    .three-col { grid-template-columns:1fr 1fr; }
+    .method-step:first-child  { border-radius:10px 10px 0 0; }
+    .method-step:last-child   { border-radius:0 0 10px 10px; border-left:1px solid var(--border); border-top:none; }
+    .method-step:nth-child(2) { border-left:1px solid var(--border); border-right:1px solid var(--border); border-top:none; border-bottom:none; }
+    .stat-row { grid-template-columns:1fr 1fr; }
+    .cv-circle, .cv-circle2, .sec-num { display:none; }
+  }
+  @media(max-width:600px){
+    .three-col { grid-template-columns:1fr; }
+    .stat-row  { grid-template-columns:1fr; }
+  }
+
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div id="prog"></div>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-dot"></div>
+    <span class="nav-title">코로나19 지표와 교통수요 상관분석 · 오은정</span>
+  </div>
+  <span class="nav-cnt" id="cnt">1 / 15</span>
+</nav>
+
+<div class="slides">
+
+  <!-- ① COVER -->
+  <div class="slide s-cover">
+    <div class="cv-circle"></div>
+    <div class="cv-circle2"></div>
+    <div class="cv-eyebrow">논문 리뷰 · 산업정보시스템전공</div>
+    <div style="margin-bottom:14px;">
+      <span class="cv-tag">교통수요 분석</span>
+      <span class="cv-tag">상관분석</span>
+      <span class="cv-tag">COVID-19</span>
+    </div>
+    <div class="cv-title">
+      코로나19 지표에 따른<br>교통수요 현황 및 상관관계 분석
+      <span class="cv-sub">한경희·김도경·강욱·손재현·이철기, 2021 · 한국ITS학회논문지</span>
+    </div>
+    <div class="cv-divider"></div>
+    <div class="cv-meta">
+      <p>📍 분석 대상 — <strong>서울시 전체 교통량 · 버스 · 지하철 · 택시 · 따릉이</strong></p>
+      <p>📊 방법론 — <strong>월별 교통량 증감률 분석 + 피어슨 상관분석 (T/P-value)</strong></p>
+      <p>🔑 핵심 발견 — <strong>대중교통 이용은 확진자보다 사망자수와 가장 유의미한 상관관계</strong></p>
+      <p style="margin-top:10px;">발표자 · <strong>오은정</strong> &nbsp;|&nbsp; 산업정보시스템전공</p>
+    </div>
+  </div>
+
+  <!-- ② TOC -->
+  <div class="slide s-toc">
+    <div class="sh">
+      <div class="sh-chap">Contents</div>
+      <div class="sh-title">발표 목차</div>
+    </div>
+    <div class="toc-grid">
+      <div class="toc-item">
+        <div class="toc-num">Ⅰ</div>
+        <div>
+          <div class="toc-lbl">연구 개요</div>
+          <div class="toc-sub">연구 배경 · 코로나19 대유행 타임라인<br>코로나19 지표 현황 · 연구 방법</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅱ</div>
+        <div>
+          <div class="toc-lbl">선행 연구</div>
+          <div class="toc-sub">통행 패턴 연구 (Kim·Han, Jin, 2020)<br>교통수요 분석 연구 7편 고찰</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅲ</div>
+        <div>
+          <div class="toc-lbl">연구 결과</div>
+          <div class="toc-sub">전체 교통량 변화 분석<br>교통수단별 이용건수 · 상관도 분석 (버스·지하철·택시·따릉이)</div>
+        </div>
+      </div>
+      <div class="toc-item">
+        <div class="toc-num">Ⅳ</div>
+        <div>
+          <div class="toc-lbl">결론</div>
+          <div class="toc-sub">분석 결과 요약 · 정책 제언<br>향후 연구 방향</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ SECTION I -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅰ</div>
+    <div class="sec-lbl">Research Overview</div>
+    <div class="sec-title">연구 개요</div>
+  </div>
+
+  <!-- ④ 연구 배경 + 타임라인 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅰ. 연구 개요</div>
+      <div class="sh-title">1.1 연구 배경 — 사회적 맥락 &amp; 연구 질문</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="badge">COVID-19 주요 경과</div>
+        <div class="timeline" style="margin-top:14px;">
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-year">2019.12</div>
+            <div class="tl-text">코로나19 최초 보고</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot"></div>
+            <div class="tl-year">2020.01</div>
+            <div class="tl-text">국내 첫 감염자 발생</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="background:var(--gold);box-shadow:0 0 0 2px var(--gold);"></div>
+            <div class="tl-year" style="color:var(--gold);">2020.06</div>
+            <div class="tl-text">사회적 거리두기 <strong>3단계</strong> 실시</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="background:var(--red);box-shadow:0 0 0 2px var(--red);"></div>
+            <div class="tl-year" style="color:var(--red);">2020.11</div>
+            <div class="tl-text">사회적 거리두기 <strong>5단계</strong> 실시</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="background:var(--red);box-shadow:0 0 0 2px var(--red);"></div>
+            <div class="tl-year" style="color:var(--red);">2020.12</div>
+            <div class="tl-text">일별 확진자 수 <strong>1천명대</strong> 진입</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot" style="background:var(--teal);box-shadow:0 0 0 2px var(--teal);"></div>
+            <div class="tl-year" style="color:var(--teal);">2021.11</div>
+            <div class="tl-text"><strong>위드 코로나</strong> 체계 전환</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="badge gold">연구 목적</div>
+        <div class="ib gold" style="margin-top:10px;">
+          <div class="ib-lbl">연구 목적</div>
+          향후 코로나19와 같은 상황을 대비하여 <strong>"교통수단 변화에 따른 대책 근거 마련 및 교통 정보 활용"</strong>
+        </div>
+        <div class="badge" style="margin-top:16px;">핵심 연구 질문 4가지</div>
+        <ul class="bul" style="margin-top:12px;">
+          <li>
+            <div style="min-width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">①</div>
+            <span>코로나19가 <strong>전체 교통량</strong>에 영향을 주었는가?</span>
+          </li>
+          <li>
+            <div style="min-width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">②</div>
+            <span><strong>자가용과 대중교통</strong> 이용 패턴에 영향을 주었는가?</span>
+          </li>
+          <li>
+            <div style="min-width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">③</div>
+            <span><strong>대중교통에 미친 영향</strong>은 얼마나 되나?</span>
+          </li>
+          <li>
+            <div style="min-width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">④</div>
+            <span>코로나19 <strong>지표와 대중교통 이용률</strong>은 관계가 있는가?</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ 코로나19 지표별 정보 -->
+  <div class="slide s-alt">
+    <div class="sh">
+      <div class="sh-chap">Ⅰ. 연구 개요</div>
+      <div class="sh-title">1.2 코로나19 지표별 현황 (2020년)</div>
+      <div class="sh-sub">Table 1. Current status of COVID-19 infection status (2020, Unit: People, %)</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="ttbl">
+        <thead>
+          <tr>
+            <th>지표</th>
+            <th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+            <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>확진자 (명)</td>
+            <td>3,150</td><td class="neg">6,636</td><td>979</td><td>703</td><td>1,334</td>
+            <td>1,506</td><td class="neg">5,642</td><td>3,856</td><td>2,714</td><td class="neg">7,768</td><td class="neg">26,564</td>
+          </tr>
+          <tr>
+            <td>검사자 (명)</td>
+            <td>82,762</td><td>318,016</td><td>208,338</td><td>290,238</td><td>361,612</td>
+            <td>288,525</td><td>368,251</td><td>381,445</td><td>298,794</td><td>428,990</td><td>1,126,169</td>
+          </tr>
+          <tr>
+            <td>사망자 (명)</td>
+            <td>16</td><td class="neg">146</td><td>85</td><td>23</td><td>12</td>
+            <td>19</td><td>23</td><td class="neg">89</td><td>51</td><td>62</td><td class="neg">374</td>
+          </tr>
+          <tr>
+            <td>확진율 (%)</td>
+            <td>0.038</td><td>0.021</td><td>0.005</td><td>0.002</td><td>0.004</td>
+            <td>0.005</td><td>0.015</td><td>0.010</td><td>0.009</td><td>0.0018</td><td>0.024</td>
+          </tr>
+          <tr>
+            <td>치명률 (%)</td>
+            <td>0.005</td><td>0.022</td><td>0.087</td><td>0.033</td><td>0.009</td>
+            <td>0.013</td><td>0.004</td><td>0.023</td><td>0.019</td><td>0.008</td><td>0.014</td>
+          </tr>
+          <tr>
+            <td>비고</td>
+            <td class="neg">1차</td><td></td><td></td><td></td><td></td>
+            <td></td><td class="neg">2차</td><td></td><td></td><td></td><td class="neg">3차</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="three-col" style="margin-top:18px;">
+      <div class="ib red" style="margin:0;">
+        <div class="ib-lbl">1차 대유행 (Feb~Mar)</div>
+        대구 신천지 중심 확진자 확산. 처음으로 전국 사회적 거리두기 시행.
+      </div>
+      <div class="ib gold" style="margin:0;">
+        <div class="ib-lbl">2차 대유행 (Aug)</div>
+        이태원·물류센터 중심 발생. 집회·교회발 확진자 급증.
+      </div>
+      <div class="ib" style="margin:0;background:var(--red-pale);border-left-color:var(--red);">
+        <div class="ib-lbl" style="color:var(--red);">3차 대유행 (Nov~Dec)</div>
+        일일 확진자 1,000명대 유지. 5인 이상 집합금지 시행.
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ 연구 방법 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅰ. 연구 개요</div>
+      <div class="sh-title">1.3 연구 방법 — 3단계 분석 체계</div>
+    </div>
+    <div class="method-grid">
+      <div class="method-step">
+        <div class="method-num">Step 1</div>
+        <div class="method-title">전체 교통량 영향도 분석</div>
+        <div class="method-body">
+          <strong>방향</strong><br>
+          코로나19 발생 현황 조사<br>서울시 지점 교통량 비교 분석<br><br>
+          <strong>분석 대상</strong><br>
+          • 코로나19가 전체 교통량에 미친 영향<br>
+          • 자가용과 대중교통 이용패턴에 미친 영향
+        </div>
+      </div>
+      <div class="method-step">
+        <div class="method-num">Step 2</div>
+        <div class="method-title">대중교통 수단별 이용률 변화 분석</div>
+        <div class="method-body">
+          <strong>방향</strong><br>
+          대중교통에 미친 영향 세부 분석<br><br>
+          <strong>분석 대상</strong><br>
+          • 코로나19 현황과 대중교통 이용건수 비교<br>
+          • 대중교통 수단별 코로나19 현황에 따른 이용률 변화
+        </div>
+      </div>
+      <div class="method-step">
+        <div class="method-num">Step 3</div>
+        <div class="method-title">상관분석 후 지표 도출</div>
+        <div class="method-body">
+          <strong>방향</strong><br>
+          향후 정책수립 활용 기준 마련 기여<br><br>
+          <strong>분석 대상</strong><br>
+          • 대중교통 이용률 변화를 코로나19 지표들과 상관분석<br>
+          • 이용 변화율과 상관성이 가장 높은 지표 도출
+        </div>
+      </div>
+    </div>
+    <div class="ib teal">
+      <div class="ib-lbl">데이터 출처</div>
+      서울시 교통수단분담률 변화 분석(TOPIS) + 질병관리본부 제공 확진자 수·사망자 수 등 코로나19 지표 데이터 활용하여 상관분석 수행
+    </div>
+  </div>
+
+  <!-- ⑦ SECTION II -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅱ</div>
+    <div class="sec-lbl">Prior Research</div>
+    <div class="sec-title">선행 연구</div>
+  </div>
+
+  <!-- ⑧ 선행 연구 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅱ. 선행 연구</div>
+      <div class="sh-title">선행 연구 고찰 — 통행 패턴 &amp; 교통수요 분야</div>
+    </div>
+    <table class="ptbl">
+      <thead>
+        <tr><th>구분</th><th>연구자</th><th>주요 내용</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="cat" rowspan="2" style="vertical-align:middle;">코로나19<br>통행 패턴</td>
+          <td>Kim &amp; Han (2020)</td>
+          <td>5가지 트렌드 변화 조사 후 4가지 정책 방향 제시</td>
+        </tr>
+        <tr>
+          <td>Jin (2020)</td>
+          <td>행정동별 생활인구를 자료로 하여 코로나 전후 생활인구 동향 파악</td>
+        </tr>
+        <tr>
+          <td class="cat" rowspan="8" style="vertical-align:middle;">코로나19<br>교통수요<br>분석</td>
+          <td>Jang et al. (2020)</td>
+          <td>교통부문 대응을 위한 코로나19 발생 전후 수송실적 자료 분석</td>
+        </tr>
+        <tr>
+          <td>Lim (2020)</td>
+          <td>도로교통 수요에 미치는 영향 분석 (대중교통 제외)</td>
+        </tr>
+        <tr>
+          <td>Lee et al. (2020)</td>
+          <td>1~3월 다양한 교통 수단에 미치는 영향 분석</td>
+        </tr>
+        <tr>
+          <td>Cho et al. (2020)</td>
+          <td>1~4월 교통에 미친 영향 분석</td>
+        </tr>
+        <tr>
+          <td>Yue et al. (2020)</td>
+          <td>도로의 차량 증가 및 교통체증이 어떻게 증가할 것인지 예측</td>
+        </tr>
+        <tr>
+          <td>Lee (2021)</td>
+          <td>대중교통 이용성 및 운송수입 변화와 해외 재정지원 사례 분석</td>
+        </tr>
+        <tr>
+          <td>Park et al. (2021)</td>
+          <td>국내 택배서비스 이용행태 변화 분석</td>
+        </tr>
+        <tr>
+          <td>Lee (2020)</td>
+          <td>대중교통에 미친 영향과 각국 대응의 시사점 분석</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="ib teal" style="margin-top:14px;">
+      <div class="ib-lbl">고찰 결과 — 3가지 공통 발견</div>
+      ① 대중교통 기피·개인 교통수단 선호 &nbsp;|&nbsp; ② 택배 물류 증가 &nbsp;|&nbsp; ③ 노선버스 운송수입 감소 (약 <strong>1조원</strong>)
+    </div>
+  </div>
+
+  <!-- ⑨ SECTION III -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅲ</div>
+    <div class="sec-lbl">Research Results</div>
+    <div class="sec-title">연구 결과</div>
+  </div>
+
+  <!-- ⑩ 전체 교통량 변화 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅲ. 연구 결과</div>
+      <div class="sh-title">3.1 전체 교통량 변화 분석</div>
+      <div class="sh-sub">Table 2. Annual traffic increase/decrease rate (unit: %) — 서울시 TOPIS 데이터</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="ttbl">
+        <thead>
+          <tr>
+            <th>연도</th>
+            <th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>Jun</th>
+            <th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th><th>Y2Y</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>2016</td><td class="neg">-0.29</td><td class="pos">3.49</td><td>0.84</td><td class="neg">-0.81</td><td>1.14</td><td class="neg">-1.82</td><td class="neg">-0.72</td><td>0.74</td><td>1.34</td><td class="neg">-0.08</td><td class="neg">-1.80</td><td class="pos">3.86</td></tr>
+          <tr><td>2017</td><td>1.29</td><td>1.34</td><td>0.56</td><td class="neg">-0.03</td><td>0.51</td><td>0.32</td><td class="neg">-0.36</td><td>1.63</td><td class="neg">-0.28</td><td class="neg">-1.08</td><td class="neg">-4.19</td><td class="pos">3.25</td></tr>
+          <tr><td>2018</td><td>2.43</td><td>1.61</td><td>1.02</td><td class="neg">-0.40</td><td>0.00</td><td class="neg">-0.91</td><td class="neg">-1.55</td><td>2.43</td><td>0.05</td><td>0.00</td><td class="neg">-1.55</td><td class="pos">4.68</td></tr>
+          <tr><td>2019</td><td class="neg">-0.25</td><td>1.84</td><td>0.53</td><td class="neg">-0.29</td><td class="neg">-0.52</td><td class="neg">-1.29</td><td>0.14</td><td>1.17</td><td>0.15</td><td class="neg">-0.09</td><td class="neg">-1.31</td><td class="pos">1.35</td></tr>
+          <tr class="avg"><td>평균 변화율</td><td>0.80</td><td>2.07</td><td>0.74</td><td class="neg">-0.38</td><td class="neg">-0.38</td><td class="neg">-1.09</td><td class="neg">-0.62</td><td>1.49</td><td>0.32</td><td class="neg">-0.31</td><td class="neg">-2.21</td><td>—</td></tr>
+          <tr class="y20"><td><strong>2020 (코로나)</strong></td><td class="neg">-2.76</td><td class="neg">-1.57</td><td class="pos">3.44</td><td>0.49</td><td>0.49</td><td class="neg">-0.63</td><td class="neg">-4.20</td><td>1.62</td><td>4.13</td><td class="neg">-1.53</td><td class="neg">-6.06</td><td class="neg">-0.54</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="three-col" style="margin-top:16px;">
+      <div class="ib" style="margin:0;">
+        <div class="ib-lbl">코로나 이전 패턴</div>
+        휴가철(7·8·11·12월) 감소 → 3월 재증가 추세. 교통량은 매년 증가.
+      </div>
+      <div class="ib gold" style="margin:0;">
+        <div class="ib-lbl">코로나 이후 변화</div>
+        발생 시점 2·3월 감소. 12월 대중교통 30% 감축 운행 → 큰 폭 감소 (-6.06%).
+      </div>
+      <div class="ib teal" style="margin:0;">
+        <div class="ib-lbl">종합 분석 (1~11월)</div>
+        전체 교통량 감소. 대중교통량은 유사, <strong>택배·배달 증가, 자가용 감소</strong>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑪ 교통수단별 이용건수 -->
+  <div class="slide s-alt">
+    <div class="sh">
+      <div class="sh-chap">Ⅲ. 연구 결과</div>
+      <div class="sh-title">3.2 교통수단별 이용건수 변화 분석 (2020)</div>
+      <div class="sh-sub">Table 3. 서울시 버스·지하철·택시·따릉이 이용건수 비교</div>
+    </div>
+    <div class="three-col" style="margin-bottom:20px;">
+      <div class="card">
+        <div class="card-icon">🚌🚇</div>
+        <div class="card-title">버스 &amp; 지하철</div>
+        <div class="card-body">
+          pandemic 시기 교통량 대비 <strong>불특정 다수가 이용하는 대중교통 이용률이 크게 감소</strong>.<br>각각 1차 -1.57%, 2차 -4.20%, 3차 -6.06% 감소 시기와 맞물려 급감.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🚕</div>
+        <div class="card-title">택시</div>
+        <div class="card-body">
+          대중교통과 유사하게 이용건수 감소. 개인 이동 수단임에도 불구하고 <strong>밀폐 공간 기피</strong> 심리가 반영된 것으로 분석.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🚲</div>
+        <div class="card-title">따릉이 (공공자전거)</div>
+        <div class="card-body">
+          3월 <strong>88% 이상 급증</strong>. 여름·겨울 계절적 영향으로 감소. <strong>코로나 외 계절 특성의 영향을 크게 받음</strong>.
+        </div>
+      </div>
+    </div>
+    <div class="hq" style="margin:0;">
+      핵심 관찰: 전체 교통량의 감소폭보다 대중교통 이용건수 감소폭이 훨씬 크게 나타남 → 시민들이 대중교통을 적극적으로 기피한 것으로 판단
+    </div>
+  </div>
+
+  <!-- ⑫ 상관분석 개념 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅲ. 연구 결과</div>
+      <div class="sh-title">3.3 상관분석 — T-value &amp; P-value 해석</div>
+    </div>
+    <div class="ib" style="margin-bottom:18px;">
+      <div class="ib-lbl">분석 대상 변수</div>
+      대중교통 이용건수(버스·지하철·택시·따릉이) ↔ 코로나19 지표(확진자 수 / 검사자 수 / 사망자 수 / 확진율 / 치명률)
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-icon">📐</div>
+        <div class="card-title">T-value</div>
+        <div class="card-body">
+          <strong>정의</strong>: 두 변수 간 상관관계가 실제일 가능성<br><br>
+          <strong>해석</strong>: 절대값 크기로 관계의 강도 파악<br>
+          |A| &gt; |B| → A와의 상관관계가 실제일 가능성이 높음<br><br>
+          <em>예시: A의 T-value -2.90, B의 T-value -1.81 → 절대값이 큰 A가 더 실제일 가능성이 높음</em>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📉</div>
+        <div class="card-title">P-value</div>
+        <div class="card-body">
+          <strong>정의</strong>: 관찰된 상관관계가 우연에 의해 발생할 확률<br><br>
+          <span class="badge green" style="margin-bottom:6px;">p &lt; 0.05</span> 상관관계가 <strong>유의미함</strong>. 우연히 발생했을 가능성 낮음.<br><br>
+          <span class="badge red" style="margin-bottom:6px;">p ≥ 0.05</span> 상관관계가 <strong>유의미하지 않음</strong>.
+        </div>
+      </div>
+    </div>
+    <div class="ib teal" style="margin-top:16px;">
+      <div class="ib-lbl">두 값을 함께 고려</div>
+      T-value는 상관관계의 <strong>강도</strong>이며, 이 값이 가설을 기각할 만한지 여부는 <strong>P-value (0.05 미만)</strong>를 통해 최종적으로 판단한다.
+    </div>
+  </div>
+
+  <!-- ⑬ 버스·지하철 상관분석 -->
+  <div class="slide s-alt">
+    <div class="sh">
+      <div class="sh-chap">Ⅲ. 연구 결과</div>
+      <div class="sh-title">3.3 버스 &amp; 지하철 ↔ 코로나19 지표 상관분석</div>
+      <div class="sh-sub">Table 4. Correlation analysis results (Bus &amp; Subway)</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="ctbl">
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th colspan="5" style="text-align:center;border-right:2px solid rgba(255,255,255,.3);">2020년</th>
+            <th colspan="5" style="text-align:center;">2021년</th>
+          </tr>
+          <tr>
+            <th></th>
+            <th>확진자</th><th>검사자</th><th>사망자</th><th>확진율</th><th style="border-right:2px solid rgba(255,255,255,.3);">치명률</th>
+            <th>확진자</th><th>검사자</th><th>사망자</th><th>확진율</th><th>치명률</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>상관계수</td>
+            <td class="neg">-0.53</td><td class="neg">-0.48</td><td class="neg strong">-0.70</td><td>-0.14</td><td style="border-right:2px solid var(--border);">-0.33</td>
+            <td>-0.12</td><td class="neg">-0.75</td><td class="neg strong">-0.86</td><td>0.08</td><td class="neg">-0.82</td>
+          </tr>
+          <tr>
+            <td>T-value</td>
+            <td>-1.88</td><td>-1.64</td><td class="strong">-2.90</td><td>-0.42</td><td style="border-right:2px solid var(--border);">-1.04</td>
+            <td>-0.28</td><td>-2.55</td><td class="strong">-3.76</td><td>0.18</td><td>-3.15</td>
+          </tr>
+          <tr>
+            <td>P-value</td>
+            <td class="nosig">0.093</td><td class="nosig">0.135</td><td class="sig">0.026</td><td class="nosig">0.687</td><td style="border-right:2px solid var(--border);" class="nosig">0.325</td>
+            <td class="nosig">0.794</td><td class="nosig">0.051</td><td class="sig">0.013</td><td class="nosig">0.861</td><td class="sig">0.025</td>
+          </tr>
+          <tr>
+            <td>유의성 검증</td>
+            <td class="nosig">✕</td><td class="nosig">✕</td><td class="sig">✓</td><td class="nosig">✕</td><td style="border-right:2px solid var(--border);" class="nosig">✕</td>
+            <td class="nosig">✕</td><td class="nosig">✕</td><td class="sig">✓</td><td class="nosig">✕</td><td class="sig">✓</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="result-grid" style="margin-top:16px;">
+      <div class="r-card">
+        <div class="r-card-lbl" style="color:var(--gold);">2020년 결과</div>
+        <div class="r-card-body"><strong>사망자</strong>와 <strong>치명률</strong>에 유의미한 상관관계 확인 (p &lt; 0.05)</div>
+      </div>
+      <div class="r-card">
+        <div class="r-card-lbl" style="color:var(--blue);">2021년 결과</div>
+        <div class="r-card-body">공통적으로 <strong>사망자수</strong>와 유의. 세부적으로 버스는 확진자수+사망자수, 지하철은 사망자수+치명률</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑭ 택시·따릉이 상관분석 -->
+  <div class="slide s-white">
+    <div class="sh">
+      <div class="sh-chap">Ⅲ. 연구 결과</div>
+      <div class="sh-title">3.3 택시 &amp; 따릉이 ↔ 코로나19 지표 상관분석</div>
+      <div class="sh-sub">Table 5 (택시) &amp; Table 6 (따릉이)</div>
+    </div>
+    <div style="margin-bottom:8px;"><span class="badge gold">🚕 택시</span></div>
+    <div style="overflow-x:auto; margin-bottom:10px;">
+      <table class="ctbl" style="font-size:11.5px;">
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th colspan="5" style="text-align:center;border-right:2px solid rgba(255,255,255,.3);">2020년</th>
+            <th colspan="5" style="text-align:center;">2021년</th>
+          </tr>
+          <tr>
+            <th></th>
+            <th>확진자</th><th>검사자</th><th>사망자</th><th>확진율</th><th style="border-right:2px solid rgba(255,255,255,.3);">치명률</th>
+            <th>확진자</th><th>검사자</th><th>사망자</th><th>확진율</th><th>치명률</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>상관계수</td>
+            <td class="neg">-0.69</td><td class="neg">-0.67</td><td class="neg strong">-0.84</td><td>-0.14</td><td style="border-right:2px solid var(--border);">-0.22</td>
+            <td>-0.06</td><td class="neg strong">-0.81</td><td class="neg strong">-0.93</td><td>0.16</td><td class="neg strong">-0.86</td>
+          </tr>
+          <tr>
+            <td>유의성</td>
+            <td class="sig">✓</td><td class="sig">✓</td><td class="sig">✓</td><td class="nosig">✕</td><td style="border-right:2px solid var(--border);" class="nosig">✕</td>
+            <td class="nosig">✕</td><td class="sig">✓</td><td class="sig">✓</td><td class="nosig">✕</td><td class="sig">✓</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-bottom:8px;"><span class="badge teal">🚲 따릉이</span></div>
+    <div style="overflow-x:auto; margin-bottom:14px;">
+      <table class="ctbl" style="font-size:11.5px;">
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th colspan="5" style="text-align:center;border-right:2px solid rgba(255,255,255,.3);">2020년</th>
+            <th colspan="5" style="text-align:center;">2021년</th>
+          </tr>
+          <tr>
+            <th></th>
+            <th>확진자</th><th>검사자</th><th>사망자</th><th>확진율</th><th style="border-right:2px solid rgba(255,255,255,.3);">치명률</th>
+            <th>확진자</th><th>검사자</th><th>사망자</th><th>확진율</th><th>치명률</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>상관계수</td>
+            <td>-0.53</td><td>-0.23</td><td>-0.42</td><td class="neg strong">-0.88</td><td style="border-right:2px solid var(--border);">0.19</td>
+            <td>0.44</td><td class="neg">-0.72</td><td class="neg strong">-0.91</td><td>0.64</td><td class="neg strong">-0.98</td>
+          </tr>
+          <tr>
+            <td>유의성</td>
+            <td class="nosig">✕</td><td class="nosig">✕</td><td class="nosig">✕</td><td class="sig">✓</td><td style="border-right:2px solid var(--border);" class="nosig">✕</td>
+            <td class="nosig">✕</td><td class="nosig">✕</td><td class="sig">✓</td><td class="nosig">✕</td><td class="sig">✓</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="two-col">
+      <div class="ib gold" style="margin:0;">
+        <div class="ib-lbl">택시 요약</div>
+        <strong>'20년</strong>: 확진자·검사자·사망자 모두 유의 (3개 지표). <strong>'21년</strong>: 검사자·사망자·치명률 유의.
+      </div>
+      <div class="ib teal" style="margin:0;">
+        <div class="ib-lbl">따릉이 요약</div>
+        <strong>'20년</strong>: 확진율과 유의 (계절 영향 혼재). <strong>'21년</strong>: 사망자·치명률과 강한 유의 (계수 –0.91, –0.98).
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑮ SECTION IV -->
+  <div class="slide s-sec">
+    <div class="sec-num">Ⅳ</div>
+    <div class="sec-lbl">Conclusion</div>
+    <div class="sec-title">결론</div>
+  </div>
+
+  <!-- ⑯ 결론 + 정책제언 -->
+  <div class="slide s-dark">
+    <div class="sec-num" style="color:rgba(255,255,255,.04);">✓</div>
+    <div class="sh" style="margin-bottom:20px;">
+      <div class="sh-chap" style="color:rgba(255,255,255,.4);">Ⅳ. 결론</div>
+      <div class="sh-title" style="color:#fff;font-family:'Noto Serif KR',serif;">분석 결과 요약 &amp; 정책 제언</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="policy-card">
+        <div class="policy-lbl">핵심 분석 결과 ①</div>
+        <div class="policy-body">
+          시민들이 쉽게 접하는 <strong style="color:#fff;">확진자 수에 반비례</strong>할 것으로 예측했으나, 실제 대중교통 이용건수는 <strong style="color:#fff;">사망자수와 가장 유의미한 상관관계</strong>를 보임.
+        </div>
+      </div>
+      <div class="policy-card">
+        <div class="policy-lbl">핵심 분석 결과 ②</div>
+        <div class="policy-body">
+          초기에는 확진자 수도 유의했으나, 시간이 지나면서 <strong style="color:#fff;">심리적으로 무뎌져</strong> 사망자수와 치명률이 더욱 공포감으로 작용한 것으로 판단.
+        </div>
+      </div>
+      <div class="policy-card">
+        <div class="policy-lbl">정책 제언</div>
+        <div class="policy-body">
+          <strong style="color:#fff;">발생 초기</strong>: 승객 간 거리 유지 위해 출퇴근 시간 조절·인원수 제한<br>
+          <strong style="color:#fff;">지속 상황</strong>: 대중교통 운행횟수 감소 등 물리적 강력 조치<br>
+          <strong style="color:#fff;">질병 대책</strong>: 서울교통공사 <strong style="color:#fff;">5,292억원</strong> 재정 손실 → 재난 대책에 질병 대책 병행 필요
+        </div>
+      </div>
+      <div class="policy-card">
+        <div class="policy-lbl">향후 연구 과제</div>
+        <div class="policy-body">
+          📊 질병에 대한 <strong style="color:#fff;">공포심 지수</strong> 활용 교통 변화 예측<br>
+          🚗 자가용·버스·화물 등 <strong style="color:#fff;">세부 교통수단별</strong> 데이터 비교 분석<br>
+          📈 보다 정밀한 <strong style="color:#fff;">교통 수요 예측 모델</strong> 개발
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- END -->
+  <div class="slide s-end">
+    <div class="end-title">감사합니다</div>
+    <div class="end-sub">산업정보시스템전공 · 오은정</div>
+    <div>
+      <span class="end-tag">코로나19 교통수요 분석</span>
+      <span class="end-tag">서울시 TOPIS 데이터</span>
+    </div>
+    <div style="margin-top:8px;">
+      <span class="end-tag">피어슨 상관분석 (T/P-value)</span>
+      <span class="end-tag">대중교통 · 사망자수 상관관계</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const cnt = document.getElementById('cnt');
+  const prog = document.getElementById('prog');
+
+  const obsVis = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('vis'); });
+  }, { threshold: 0.1 });
+
+  const obsCnt = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if(e.isIntersecting){
+        const i = Array.from(slides).indexOf(e.target) + 1;
+        cnt.textContent = i + ' / ' + slides.length;
+        prog.style.width = (i / slides.length * 100) + '%';
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(s => { obsVis.observe(s); obsCnt.observe(s); });
+</script>
+</body>
+</html>
